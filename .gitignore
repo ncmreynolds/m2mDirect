@@ -1,3 +1,7 @@
+# Arduino stuff
+.development
+credentials.h
+
 # Prerequisites
 *.d
 
