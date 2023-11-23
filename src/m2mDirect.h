@@ -25,8 +25,8 @@
 	#include <WiFi.h>
 	#include <Preferences.h>
 	extern "C" {
-	#include <esp_now.h>
-	#include <esp_wifi.h> // only for esp_wifi_set_channel()
+		#include <esp_now.h>
+		#include <esp_wifi.h> // only for esp_wifi_set_channel()
 	}
 #endif
 
@@ -94,6 +94,7 @@ class m2mDirect	{
 		m2mDirect& setConnectedCallback(std::function<void()> function);			//Set the connected callback
 		m2mDirect& setDisconnectedCallback(std::function<void()> function);			//Set the disconnected callback
 		m2mDirect& setMessageReceivedCallback(std::function<void()> function);		//Set the message received callback
+		bool connected();															//Simple boolean measure of being connected
 		uint32_t linkQuality();														//A measure of link quality
 		void debug(Stream &);														//Start debugging on a stream
 
@@ -169,7 +170,29 @@ class m2mDirect	{
 			else
 			{
 				uint8_t dataType = determineDataType(*dataDestination);
-				if(dataType == _receivedPacketBuffer[_receivedPacketBufferPosition])
+				//if(dataType == DATA_BOOL && (DATA_BOOL == _receivedPacketBuffer[_receivedPacketBufferPosition] || DATA_BOOL_TRUE == _receivedPacketBuffer[_receivedPacketBufferPosition]))
+				if(dataType == DATA_BOOL)// && (DATA_BOOL == _receivedPacketBuffer[_receivedPacketBufferPosition] || DATA_BOOL_TRUE == _receivedPacketBuffer[_receivedPacketBufferPosition]))
+				{
+					if(_receivedPacketBuffer[_receivedPacketBufferPosition] == DATA_BOOL_TRUE)
+					{
+						*dataDestination = true;
+					}
+					else
+					{
+						*dataDestination = false;
+					}
+					_receivedPacketBuffer[1]--;	//Mark the field as retrieved
+					if(_receivedPacketBuffer[1] == 0)
+					{
+						_receivedPacketBufferPosition = 2;	//Reset the buffer position for the next message
+					}
+					else
+					{
+						_receivedPacketBufferPosition++;	//Move to the next field
+					}
+					return true;
+				}
+				else if(dataType == _receivedPacketBuffer[_receivedPacketBufferPosition])
 				{
 					_receivedPacketBuffer[1]--;	//Mark the field as retrieved
 					_receivedPacketBufferPosition++;	//Skip over the type marker for the field
@@ -206,12 +229,21 @@ class m2mDirect	{
 	protected:
 	private:
 		//Variables
-		#ifdef ESP8266
-		//Ticker houseKeepingticker;													//The Ticker used to run regular housekeeping tasks
+		#if defined ESP8266
+			//Ticker houseKeepingticker;													//The Ticker used to run regular housekeeping tasks
+		#elif defined ESP32
+			Preferences settings;													//Instance of preferences used to store settings
+			char preferencesNamespace[10] = "m2mDirect";							//Preferences namespace used to store pairing info
+			char pairedMacKey[8] = "pairMac";										//Key in namespace for paired MAC address
+			char pairedPrimaryKey[7] = "priKey";									//Key in namespace for primary encryption key
+			char pairedLocalKey[7] = "locKey";										//Key in namespace for local encryption key
+			char pairedNameKey[5] = "name";											//Key in namespace for remote device name
+			char pairedNameLengthKey[4] = "len";									//Key in namespace for remote device name length
 		#endif
 		Stream *debug_uart_ = nullptr;												//The stream used for the debugging
 		uint8_t _pairingButtonGpio = 255;											//The GPIO pin used as a pairing button 255=unused
 		bool _pairingButtonGpioNc = false;											//GPIO button pin is normally closed
+		uint32_t _pairingButtonPressTime = 0;										//Used to detect a long press
 		uint8_t _indicatorLedGpio = 255;											//The GPIO pin used as an indicator LED 255=unused
 		bool _indicatorLedGpioInverted = false;										//GPIO pin is inverted
 		bool _indicatorState = false;												//State of indicator LED
@@ -222,17 +254,22 @@ class m2mDirect	{
 		uint8_t _communicationChannel = 0;											//Channel used for communication
 		bool _encyptionEnabled = true;												//Whether to encrypt communication
 		uint32_t _localActivityTimer = 0;											//General timer for periodic activity like keepalives
-		uint32_t _lastlocalActivityTimer = 0;										//Need the previous timer value for checking keepalive echoes
+		uint32_t _previouslocalActivityTimer = 0;									//Need the previous timer value for checking keepalive echoes
 		uint32_t _remoteActivityTimer = 0;											//General timer for periodic activity like keepalives
 		uint32_t receivedLocalActivityTimer = 0;									//Used in echo quality detection
 		//uint32_t _lastTimestamp = 0;												//Last timestamp in a sent packet
-		uint32_t _keepaliveInterval = 1000;											//Keepalive time for a paired connection
+		uint32_t _startingKeepaliveInterval = 250;									//Starting keepalive time for a paired connection
+		uint32_t _minimumKeepaliveInterval = 50;									//Minimum keepalive time for a paired connection
+		uint32_t _maximumKeepaliveInterval = 10000;									//Maximum keepalive time for a paired connection
+		uint32_t _keepaliveInterval = 250;											//Keepalive time for a paired connection
 		uint32_t _pairingInterval = 5000;											//How often to send pairing packets
 		uint32_t _sendTimer = 0;													//Timer for sent packets
 		uint32_t _sendTimeout = 100;												//How long to wait for confirmation of a sent packet
 		bool _waitingForSendCallback = false;										//Flag that we're waiting for a callback
-		uint32_t _sendQuality = 0xFFFF0000;											//A measure of send quality, using built in ACKs from ESP-Now
-		uint32_t _echoQuality = 0xFFFFFFFF;											//A measure of echo quality, using keepalive echoes
+		uint32_t _sendQuality = 0x00000000;											//A measure of send quality, using built in ACKs from ESP-Now
+		uint32_t _startingSendquality = 0x00000000;
+		uint32_t _echoQuality = 0x00000000;											//A measure of echo quality, using keepalive echoes
+		uint32_t _startingEchoQuality = 0x00000000;
 		uint8_t _primaryEncryptionKey[16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};		//Primary encryption key
 		uint8_t _localEncryptionKey[16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};		//Encryption key for this device
 		uint8_t _localMacAddress[6] = {0, 0, 0, 0, 0, 0};							//MAC address of this device
@@ -257,6 +294,7 @@ class m2mDirect	{
 		std::function<void()> disconnectedCallback = nullptr;						//Pointer to the disconnected callback
 		std::function<void()> messageReceivedCallback = nullptr;					//Pointer to the message received callback
 		//Methods
+		void _advanceTimers();														//Swap current/previous activity timers
 		bool _readPairingInfo();													//Read pairing from EEPROM (ESP8266) or 'preferences' (ESP32)
 		bool _writePairingInfo();													//Write pairing from EEPROM (ESP8266) or 'preferences' (ESP32)
 		bool _deletePairingInfo();													//Delete pairing from EEPROM (ESP8266) or 'preferences' (ESP32)
@@ -270,6 +308,8 @@ class m2mDirect	{
 		bool _setPrimaryEncryptionKey();											//Set the primary encryption key
 		void _createPairingMessage();												//Create the pairing message
 		void _createPairingAckMessage();											//Create the pairing ACK message
+		void _increaseKeepaliveInterval();											//Increase keepalive interval
+		void _decreaseKeepaliveInterval();											//Increase keepalive interval
 		void _createKeepaliveMessage();												//Create the connection keepalive message
 		bool _sendBroadcastPacket(uint8_t* buffer, uint8_t length);					//Send broadcast messages, mostly for pairing
 		bool _sendUnicastPacket(uint8_t* buffer, uint8_t length, bool wait = true);	//Send unicast messages
@@ -277,6 +317,8 @@ class m2mDirect	{
 		bool _registerPeer(uint8_t* macaddress, uint8_t channel);					//Register an unencrypted peer
 		bool _registerPeer(uint8_t* macaddress, uint8_t channel, uint8_t* key);		//Register an encrypted peer
 		void _printPacketDescription(uint8_t);										//Print packet description
+		void _printCurrentState();	
+		void _debugState();	
 		uint8_t _currentChannel();													//Current WiFi channel
 		uint8_t ICACHE_FLASH_ATTR determineDataType(bool type)		{return(DATA_BOOL		);}
 		uint8_t ICACHE_FLASH_ATTR determineDataType(char type)		{return(DATA_CHAR		);}
