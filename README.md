@@ -53,7 +53,7 @@ m2mDirect.begin(1);  //Start the M2M connection on channel 1
 
 ## Housekeeping
 
-The library relies on regular housekeeping to send keepalive packets. This must be called regularly in the main loop, if it is frequently delayed then the link will be considered. This *may* move to an RTOS task on ESP32 at some point in the future.
+The library relies on regular housekeeping to send keepalive packets. This must be called regularly in the main loop, if it is frequently delayed then the link will be considered disconnected. This *may* move to an RTOS task on ESP32 at some point in the future.
 
 ```
 void loop()
@@ -297,6 +297,95 @@ On occasion it may make sense to discard some or all of the data in a message.
 ```
 m2mDirect.clearReceivedMessage();  //Clear the received message to wait for the next message
 ```
+
+## Other callbacks
+
+In keeping with the event driven model, there are other callbacks the application can set to keep it apprised of the state of the link.
+
+```
+/*
+ * 
+ * This function is called when this device starts pairing
+ * 
+ */
+void onPairStart()
+{
+	Serial.print(F("\n\rStarting pairing"));
+}
+/*
+ * 
+ * This function is called when the two devices connect
+ * 
+ */
+void onPaired()
+{
+    if(m2mDirect.remoteNameSet() == true)
+    {
+        Serial.print(F("\n\rPaired with device: "));
+        Serial.print(m2mDirect.remoteName());
+    }
+    else
+    {
+	    Serial.print(F("\n\rPaired"));
+    }
+}
+/*
+ * 
+ * This function is called when the two devices connect
+ * 
+ */
+void onConnected()
+{
+    if(m2mDirect.remoteNameSet() == true)
+    {
+        Serial.print(F("\n\rConnected to device: "));
+        Serial.print(m2mDirect.remoteName());
+    }
+    else
+    {
+	    Serial.print(F("\n\rConnected"));
+    }
+}
+
+/*
+ * 
+ * This function is called when the two devices disconnect
+ * 
+ */
+void onDisconnected()
+{
+    if(m2mDirect.remoteNameSet() == true)
+    {
+        Serial.print(F("\n\rDisconnected from device: "));
+        Serial.print(m2mDirect.remoteName());
+    }
+    else
+    {
+	    Serial.print(F("\n\rDisconnected"));
+    }
+}
+void setup()
+{
+  Serial.begin(115200); //Start the serial interface for debug
+  delay(500); //Give some time for the Serial Monitor to come online
+  //m2mDirect.debug(Serial);  //Tell the library to use Serial for debug output
+  m2mDirect.pairingButtonGpio(0); //Enable the pairing button on GPIO 0 which is often available on ESP board as the 'program' button
+  #ifdef LED_BUILTIN
+    m2mDirect.indicatorGpio(LED_BUILTIN);  //Enable the indicator LED
+  #endif
+  m2mDirect.localName(name);  //Set the name of the device
+  m2mDirect.setPairingCallback(onPairStart);  //Set the 'pairing' callback created above
+  m2mDirect.setPairedCallback(onPaired);  //Set the 'paired' callback created above
+  m2mDirect.setConnectedCallback(onConnected);  //Set the 'connected' callback created above
+  m2mDirect.setDisconnectedCallback(onDisconnected);  //Set the 'disconnected' callback created above
+  m2mDirect.setMessageReceivedCallback(onMessageReceived);  //Set the 'message received' callback created above
+  m2mDirect.setAutomaticTxPower(true); //Enable automatic adjustment of transmit power (default, use false to disable this)
+  m2mDirect.begin(1);  //Start the M2M connection on channel 1
+}
+
+```
+
+
 
 ## Known Issues/Omissions
 
