@@ -138,7 +138,7 @@ void m2mDirectClass::begin(uint8_t communicationChannel, uint8_t pairingChannel)
 		_pairingInfoRead = true;
 	}
 	#if defined(ESP8266)
-	//houseKeepingticker.attach_ms(100,[](){m2m.housekeeping();});
+	//houseKeepingticker.attach_ms(100,[](){m2mDirect.housekeeping();});
 	#endif
 }
 /*
@@ -257,9 +257,9 @@ void m2mDirectClass::housekeeping()
 		_keepaliveInterval = _startingKeepaliveInterval;	//Reset to defaults
 		if(_pairingInfoRead == true)
 		{
-			if(m2m.pairedCallback != nullptr)
+			if(m2mDirect.pairedCallback != nullptr)
 			{
-				m2m.pairedCallback();
+				m2mDirect.pairedCallback();
 			}
 			state = m2mDirectState::connecting;
 			_indicatorTimerInterval = M2M_DIRECT_INDICATOR_LED_CONNECTING_INTERVAL;
@@ -280,9 +280,9 @@ void m2mDirectClass::housekeeping()
 			}
 			_createPairingMessage();
 			state = m2mDirectState::pairing;
-			if(m2m.pairingCallback != nullptr)
+			if(m2mDirect.pairingCallback != nullptr)
 			{
-				m2m.pairingCallback();
+				m2mDirect.pairingCallback();
 			}
 			_indicatorTimerInterval = M2M_DIRECT_INDICATOR_LED_PAIRING_INTERVAL;
 			if(debug_uart_ != nullptr)
@@ -389,7 +389,7 @@ void m2mDirectClass::housekeeping()
 		if(millis() - receivedLocalActivityTimer > _keepaliveInterval*3) //We've defintely missed an echo
 		{
 			receivedLocalActivityTimer = millis();
-			_echoQuality = m2m._echoQuality >> 1;	//Reduce echo quality
+			_echoQuality = m2mDirect._echoQuality >> 1;	//Reduce echo quality
 		}
 	}
 	else if(state == m2mDirectState::disconnected)
@@ -967,11 +967,11 @@ bool ICACHE_FLASH_ATTR m2mDirectClass::_initialiseEspNowCallbacks()
 		receivedCrc+=receivedMessage[receivedMessageLength - 3] << 16;
 		receivedCrc+=receivedMessage[receivedMessageLength - 4] << 24;
 		#ifdef M2M_DIRECT_DEBUG_RECEIVE
-		if(m2m.debug_uart_ != nullptr)
+		if(m2mDirect.debug_uart_ != nullptr)
 		{
-			m2m.debug_uart_->printf_P(PSTR("\n\rRX %03u bytes from:%02x%02x%02x%02x%02x%02x "), receivedMessageLength, macAddress[0], macAddress[1], macAddress[2], macAddress[3], macAddress[4], macAddress[5]);
-			m2m._printPacketDescription(receivedMessage[0]);
-			//m2m.debug_uart_->printf_P(PSTR(" CRC:%08x "),  receivedCrc);
+			m2mDirect.debug_uart_->printf_P(PSTR("\n\rRX %03u bytes from:%02x%02x%02x%02x%02x%02x "), receivedMessageLength, macAddress[0], macAddress[1], macAddress[2], macAddress[3], macAddress[4], macAddress[5]);
+			m2mDirect._printPacketDescription(receivedMessage[0]);
+			//m2mDirect.debug_uart_->printf_P(PSTR(" CRC:%08x "),  receivedCrc);
 		}
 		#endif
 		//Calculate the received CRC32
@@ -981,9 +981,9 @@ bool ICACHE_FLASH_ATTR m2mDirectClass::_initialiseEspNowCallbacks()
 		if(crc.calc() == receivedCrc)
 		{
 			#ifdef M2M_DIRECT_DEBUG_RECEIVE
-			if(m2m.debug_uart_ != nullptr)
+			if(m2mDirect.debug_uart_ != nullptr)
 			{
-				m2m.debug_uart_->print(F(" valid"));
+				m2mDirect.debug_uart_->print(F(" valid"));
 			}
 			#endif
 			//Pairing messages are the first stage in setting up a connection, sent broadcast
@@ -991,9 +991,9 @@ bool ICACHE_FLASH_ATTR m2mDirectClass::_initialiseEspNowCallbacks()
 			if(receivedMessage[0] == M2M_DIRECT_PAIRING_FLAG)
 			{
 				//Debug output
-				if(m2m.debug_uart_ != nullptr)
+				if(m2mDirect.debug_uart_ != nullptr)
 				{
-					m2m.debug_uart_->printf_P(PSTR("\n\rPairing message on channel:%i from %02x%02x%02x%02x%02x%02x\n\r\tGlobal encryption key:%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x\n\r\tLocal encryption key:%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x"),
+					m2mDirect.debug_uart_->printf_P(PSTR("\n\rPairing message on channel:%i from %02x%02x%02x%02x%02x%02x\n\r\tGlobal encryption key:%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x\n\r\tLocal encryption key:%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x"),
 						receivedMessage[1],//Channel
 						receivedMessage[2],//Remote MAC address
 						receivedMessage[3],
@@ -1036,119 +1036,119 @@ bool ICACHE_FLASH_ATTR m2mDirectClass::_initialiseEspNowCallbacks()
 					);
 					if(receivedMessage[40] > 0)	//There is a name
 					{
-						m2m.debug_uart_->printf_P(PSTR("\n\r\tName:'%s' length:%u"), &receivedMessage[41], receivedMessage[40]);
+						m2mDirect.debug_uart_->printf_P(PSTR("\n\r\tName:'%s' length:%u"), &receivedMessage[41], receivedMessage[40]);
 					}
 				}
 				//The normal state of things, one of the pair will get there first
-				if(m2m.state == m2mDirectState::pairing)
+				if(m2mDirect.state == m2mDirectState::pairing)
 				{
 					//Copy the remote MAC address
-					memcpy(m2m._remoteMacAddress, &receivedMessage[2], MAC_ADDRESS_LENGTH);
+					memcpy(m2mDirect._remoteMacAddress, &receivedMessage[2], MAC_ADDRESS_LENGTH);
 					//Copy the remote name
-					if(m2m.remoteDeviceName == nullptr)
+					if(m2mDirect.remoteDeviceName == nullptr)
 					{
 						if(receivedMessage[40] > 0)	//There is a name
 						{
-							m2m.remoteDeviceName = new char[receivedMessage[40] + 1];
-							memcpy(m2m.remoteDeviceName, &receivedMessage[41], receivedMessage[40]);
-							m2m.remoteDeviceName[receivedMessage[40]] = 0;	//Null terminate this string
+							m2mDirect.remoteDeviceName = new char[receivedMessage[40] + 1];
+							memcpy(m2mDirect.remoteDeviceName, &receivedMessage[41], receivedMessage[40]);
+							m2mDirect.remoteDeviceName[receivedMessage[40]] = 0;	//Null terminate this string
 						}
 					}
-					if(m2m._tieBreak(m2m._remoteMacAddress, m2m._localMacAddress)) //Do a tie break based on MAC address
+					if(m2mDirect._tieBreak(m2mDirect._remoteMacAddress, m2mDirect._localMacAddress)) //Do a tie break based on MAC address
 					{
-						if(memcmp(m2m._primaryEncryptionKey,&receivedMessage[8],ENCRYPTION_KEY_LENGTH !=0) ||
-							memcmp(m2m._localEncryptionKey,&receivedMessage[24],ENCRYPTION_KEY_LENGTH !=0))
+						if(memcmp(m2mDirect._primaryEncryptionKey,&receivedMessage[8],ENCRYPTION_KEY_LENGTH !=0) ||
+							memcmp(m2mDirect._localEncryptionKey,&receivedMessage[24],ENCRYPTION_KEY_LENGTH !=0))
 						{
-							if(m2m.debug_uart_ != nullptr)
+							if(m2mDirect.debug_uart_ != nullptr)
 							{
-								m2m.debug_uart_->print(F("\n\rRemote device wins tie, using its keys"));
+								m2mDirect.debug_uart_->print(F("\n\rRemote device wins tie, using its keys"));
 							}
 							//Copy the expected communication channel, overriding this device's choice
-							m2m._communicationChannel = receivedMessage[1];
+							m2mDirect._communicationChannel = receivedMessage[1];
 							//Copy the global encryption key, overriding this device's choice
-							memcpy(m2m._primaryEncryptionKey, &receivedMessage[8], ENCRYPTION_KEY_LENGTH);
+							memcpy(m2mDirect._primaryEncryptionKey, &receivedMessage[8], ENCRYPTION_KEY_LENGTH);
 							//Copy the local encryption key, overriding this device's choice
-							memcpy(m2m._localEncryptionKey, &receivedMessage[24], ENCRYPTION_KEY_LENGTH);
+							memcpy(m2mDirect._localEncryptionKey, &receivedMessage[24], ENCRYPTION_KEY_LENGTH);
 						}
 						else
 						{
-							if(m2m.debug_uart_ != nullptr)
+							if(m2mDirect.debug_uart_ != nullptr)
 							{
-								m2m.debug_uart_->print(F("\n\rRemote device won tie, already have its keys"));
+								m2mDirect.debug_uart_->print(F("\n\rRemote device won tie, already have its keys"));
 							}
 						}
 						//Change state to confirm pairing with other device
-						if(m2m.debug_uart_ != nullptr)
+						if(m2mDirect.debug_uart_ != nullptr)
 						{
-							m2m.debug_uart_->print(F("\n\rPaired"));
+							m2mDirect.debug_uart_->print(F("\n\rPaired"));
 						}
-						if(m2m._encyptionEnabled == true)
+						if(m2mDirect._encyptionEnabled == true)
 						{
-							if(m2m._setPrimaryEncryptionKey() == true)	//Use the advertised primary encryption key
+							if(m2mDirect._setPrimaryEncryptionKey() == true)	//Use the advertised primary encryption key
 							{
-								if(m2m._registerPeer(m2m._remoteMacAddress, m2m._communicationChannel, m2m._localEncryptionKey) == true)
+								if(m2mDirect._registerPeer(m2mDirect._remoteMacAddress, m2mDirect._communicationChannel, m2mDirect._localEncryptionKey) == true)
 								{
 									//Move on to the paired state and start sending pairing ACKs
-									m2m._createPairingAckMessage();
-									m2m.state = m2mDirectState::paired;
-									m2m._indicatorTimerInterval = M2M_DIRECT_INDICATOR_LED_PAIRED_INTERVAL;
-									if(m2m.debug_uart_ != nullptr)
+									m2mDirect._createPairingAckMessage();
+									m2mDirect.state = m2mDirectState::paired;
+									m2mDirect._indicatorTimerInterval = M2M_DIRECT_INDICATOR_LED_PAIRED_INTERVAL;
+									if(m2mDirect.debug_uart_ != nullptr)
 									{
-										m2m._debugState();
+										m2mDirect._debugState();
 									}
-									if(m2m.pairedCallback != nullptr)
+									if(m2mDirect.pairedCallback != nullptr)
 									{
-										m2m.pairedCallback();
+										m2mDirect.pairedCallback();
 									}
 								}
 							}
 						}
 						else
 						{
-							if(m2m._registerPeer(m2m._remoteMacAddress, m2m._communicationChannel))
+							if(m2mDirect._registerPeer(m2mDirect._remoteMacAddress, m2mDirect._communicationChannel))
 							{
 								//Move on to the paired state and start sending pairing ACKs
-								m2m._createPairingAckMessage();
-								m2m.state = m2mDirectState::paired;
-								m2m._indicatorTimerInterval = M2M_DIRECT_INDICATOR_LED_PAIRED_INTERVAL;
-								if(m2m.debug_uart_ != nullptr)
+								m2mDirect._createPairingAckMessage();
+								m2mDirect.state = m2mDirectState::paired;
+								m2mDirect._indicatorTimerInterval = M2M_DIRECT_INDICATOR_LED_PAIRED_INTERVAL;
+								if(m2mDirect.debug_uart_ != nullptr)
 								{
-									m2m._debugState();
+									m2mDirect._debugState();
 								}
-								if(m2m.pairedCallback != nullptr)
+								if(m2mDirect.pairedCallback != nullptr)
 								{
-									m2m.pairedCallback();
+									m2mDirect.pairedCallback();
 								}
 							}
 						}
 					}
 					else
 					{
-						if(m2m.debug_uart_ != nullptr)
+						if(m2mDirect.debug_uart_ != nullptr)
 						{
-							m2m.debug_uart_->print(F("\n\rLocal device wins tie"));
+							m2mDirect.debug_uart_->print(F("\n\rLocal device wins tie"));
 						}
 					}
 				}
-				else if(m2m.state == m2mDirectState::paired)
+				else if(m2mDirect.state == m2mDirectState::paired)
 				{
-					if(m2m.debug_uart_ != nullptr)
+					if(m2mDirect.debug_uart_ != nullptr)
 					{
-						m2m.debug_uart_->print(F("\n\rIgnoring pairing message, already paired"));
+						m2mDirect.debug_uart_->print(F("\n\rIgnoring pairing message, already paired"));
 					}
 				}
-				else if(m2m.state == m2mDirectState::connected)
+				else if(m2mDirect.state == m2mDirectState::connected)
 				{
-					if(m2m.debug_uart_ != nullptr)
+					if(m2mDirect.debug_uart_ != nullptr)
 					{
-						m2m.debug_uart_->print(F("\n\rIgnoring pairing message, already connected"));
+						m2mDirect.debug_uart_->print(F("\n\rIgnoring pairing message, already connected"));
 					}
 				}
 				else
 				{
-					if(m2m.debug_uart_ != nullptr)
+					if(m2mDirect.debug_uart_ != nullptr)
 					{
-						m2m.debug_uart_->print(F("\n\rIgnoring unexpected message"));
+						m2mDirect.debug_uart_->print(F("\n\rIgnoring unexpected message"));
 					}
 				}
 			}
@@ -1156,9 +1156,9 @@ bool ICACHE_FLASH_ATTR m2mDirectClass::_initialiseEspNowCallbacks()
 			else if(receivedMessage[0] == M2M_DIRECT_PAIRING_ACK_FLAG)
 			{
 				//Debug output
-				if(m2m.debug_uart_ != nullptr)
+				if(m2mDirect.debug_uart_ != nullptr)
 				{
-					m2m.debug_uart_->printf_P(PSTR("\n\rPairing ACK message on channel:%u from %02x%02x%02x%02x%02x%02x\r\n\tGlobal Key:%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x for %02x%02x%02x%02x%02x%02x\r\n\tLocal Key:%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x"),
+					m2mDirect.debug_uart_->printf_P(PSTR("\n\rPairing ACK message on channel:%u from %02x%02x%02x%02x%02x%02x\r\n\tGlobal Key:%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x for %02x%02x%02x%02x%02x%02x\r\n\tLocal Key:%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x"),
 						receivedMessage[1],	//Channel
 						receivedMessage[2],	//Remote MAC address
 						receivedMessage[3],
@@ -1207,108 +1207,108 @@ bool ICACHE_FLASH_ATTR m2mDirectClass::_initialiseEspNowCallbacks()
 					);
 					if(receivedMessage[46] > 0)	//There is a name
 					{
-						m2m.debug_uart_->printf_P(PSTR("\n\r\tName:'%s' length:%u"), &receivedMessage[47], receivedMessage[46]);
+						m2mDirect.debug_uart_->printf_P(PSTR("\n\r\tName:'%s' length:%u"), &receivedMessage[47], receivedMessage[46]);
 					}
 				}
 				//This node sent the first pairing message and has had a pairing ACK in response
-				if(m2m.state == m2mDirectState::pairing)
+				if(m2mDirect.state == m2mDirectState::pairing)
 				{
-					if(m2m._remoteMacAddressSet() == false)
+					if(m2mDirect._remoteMacAddressSet() == false)
 					{
 						//Copy the remote MAC address
-						memcpy(m2m._remoteMacAddress, &receivedMessage[2], MAC_ADDRESS_LENGTH);
+						memcpy(m2mDirect._remoteMacAddress, &receivedMessage[2], MAC_ADDRESS_LENGTH);
 						//Copy the remote name
-						if(m2m.remoteDeviceName == nullptr)
+						if(m2mDirect.remoteDeviceName == nullptr)
 						{
 							if(receivedMessage[46] > 0)	//There is a name
 							{
-								m2m.remoteDeviceName = new char[receivedMessage[46] + 1];
-								memcpy(m2m.remoteDeviceName, &receivedMessage[47], receivedMessage[46]);
-								m2m.remoteDeviceName[receivedMessage[46]] = 0;	//Null terminate this string
+								m2mDirect.remoteDeviceName = new char[receivedMessage[46] + 1];
+								memcpy(m2mDirect.remoteDeviceName, &receivedMessage[47], receivedMessage[46]);
+								m2mDirect.remoteDeviceName[receivedMessage[46]] = 0;	//Null terminate this string
 							}
 						}
 					}
-					if(m2m._tieBreak(m2m._localMacAddress, (uint8_t*)&receivedMessage[2]) && //Do a tie break based on MAC address
+					if(m2mDirect._tieBreak(m2mDirect._localMacAddress, (uint8_t*)&receivedMessage[2]) && //Do a tie break based on MAC address
 						//Matches the expected communication channel
-						receivedMessage[1] == m2m._communicationChannel &&
+						receivedMessage[1] == m2mDirect._communicationChannel &&
 						//Matches the remote MAC address
-						memcmp(&receivedMessage[2], m2m._remoteMacAddress, MAC_ADDRESS_LENGTH) == 0 &&
+						memcmp(&receivedMessage[2], m2mDirect._remoteMacAddress, MAC_ADDRESS_LENGTH) == 0 &&
 						//Matches the local MAC address
-						memcmp(&receivedMessage[8], m2m._localMacAddress, MAC_ADDRESS_LENGTH) == 0 &&
+						memcmp(&receivedMessage[8], m2mDirect._localMacAddress, MAC_ADDRESS_LENGTH) == 0 &&
 						//Matches the global encryption key
-						memcmp(&receivedMessage[14], m2m._primaryEncryptionKey, ENCRYPTION_KEY_LENGTH) == 0 &&
+						memcmp(&receivedMessage[14], m2mDirect._primaryEncryptionKey, ENCRYPTION_KEY_LENGTH) == 0 &&
 						//Matches the local encryption key
-						memcmp(&receivedMessage[30], m2m._localEncryptionKey, ENCRYPTION_KEY_LENGTH) == 0
+						memcmp(&receivedMessage[30], m2mDirect._localEncryptionKey, ENCRYPTION_KEY_LENGTH) == 0
 					)
 					{
-						if(m2m._encyptionEnabled == true)
+						if(m2mDirect._encyptionEnabled == true)
 						{
-							if(m2m._setPrimaryEncryptionKey() == true)	//Use the advertised primary encryption key
+							if(m2mDirect._setPrimaryEncryptionKey() == true)	//Use the advertised primary encryption key
 							{
-								if(m2m._registerPeer(m2m._remoteMacAddress, m2m._communicationChannel, m2m._localEncryptionKey) == true)
+								if(m2mDirect._registerPeer(m2mDirect._remoteMacAddress, m2mDirect._communicationChannel, m2mDirect._localEncryptionKey) == true)
 								{
 									//Both ends match, move to paired
-									if(m2m.debug_uart_ != nullptr)
+									if(m2mDirect.debug_uart_ != nullptr)
 									{
-										m2m.debug_uart_->print(F("\n\rPairing confirmed"));
+										m2mDirect.debug_uart_->print(F("\n\rPairing confirmed"));
 									}
 									//Move on to the paired state and start sending pairing ACKs
-									m2m._createPairingAckMessage();
-									m2m.state = m2mDirectState::paired;
-									m2m._indicatorTimerInterval = M2M_DIRECT_INDICATOR_LED_PAIRED_INTERVAL;
-									if(m2m.debug_uart_ != nullptr)
+									m2mDirect._createPairingAckMessage();
+									m2mDirect.state = m2mDirectState::paired;
+									m2mDirect._indicatorTimerInterval = M2M_DIRECT_INDICATOR_LED_PAIRED_INTERVAL;
+									if(m2mDirect.debug_uart_ != nullptr)
 									{
-										m2m._debugState();
+										m2mDirect._debugState();
 									}
-									if(m2m.pairedCallback != nullptr)
+									if(m2mDirect.pairedCallback != nullptr)
 									{
-										m2m.pairedCallback();
+										m2mDirect.pairedCallback();
 									}
 								}
 							}
 						}
 						else
 						{
-							if(m2m._registerPeer(m2m._remoteMacAddress, m2m._communicationChannel))
+							if(m2mDirect._registerPeer(m2mDirect._remoteMacAddress, m2mDirect._communicationChannel))
 							{
 								//Both ends match, move to Paired
-								if(m2m.debug_uart_ != nullptr)
+								if(m2mDirect.debug_uart_ != nullptr)
 								{
-									m2m.debug_uart_->print(F("\n\rPairing confirmed"));
+									m2mDirect.debug_uart_->print(F("\n\rPairing confirmed"));
 								}
 								//Move on to the paired state and start sending pairing ACKs
-								m2m._createPairingAckMessage();
-								m2m.state = m2mDirectState::paired;
-								m2m._indicatorTimerInterval = M2M_DIRECT_INDICATOR_LED_PAIRED_INTERVAL;
-								if(m2m.debug_uart_ != nullptr)
+								m2mDirect._createPairingAckMessage();
+								m2mDirect.state = m2mDirectState::paired;
+								m2mDirect._indicatorTimerInterval = M2M_DIRECT_INDICATOR_LED_PAIRED_INTERVAL;
+								if(m2mDirect.debug_uart_ != nullptr)
 								{
-									m2m._debugState();
+									m2mDirect._debugState();
 								}
-								if(m2m.pairedCallback != nullptr)
+								if(m2mDirect.pairedCallback != nullptr)
 								{
-									m2m.pairedCallback();
+									m2mDirect.pairedCallback();
 								}
 							}
 						}
 					}
 					else
 					{
-						if(m2m.debug_uart_ != nullptr)
+						if(m2mDirect.debug_uart_ != nullptr)
 						{
-							m2m.debug_uart_->print(F("\n\rUnexpected pairing ACK contents"));
-							if(receivedMessage[1] != m2m._communicationChannel)
+							m2mDirect.debug_uart_->print(F("\n\rUnexpected pairing ACK contents"));
+							if(receivedMessage[1] != m2mDirect._communicationChannel)
 							{
-								m2m.debug_uart_->print(F("\n\rChannel mismatch"));
+								m2mDirect.debug_uart_->print(F("\n\rChannel mismatch"));
 							}
-							if(memcmp(&receivedMessage[2], m2m._remoteMacAddress, MAC_ADDRESS_LENGTH) != 0)
+							if(memcmp(&receivedMessage[2], m2mDirect._remoteMacAddress, MAC_ADDRESS_LENGTH) != 0)
 							{
-								m2m.debug_uart_->printf_P(PSTR("\n\rRemote MAC address mismatch, wanted %02x%02x%02x%02x%02x%02x have %02x%02x%02x%02x%02x%02x"),
-									m2m._remoteMacAddress[0],
-									m2m._remoteMacAddress[1],
-									m2m._remoteMacAddress[2],
-									m2m._remoteMacAddress[3],
-									m2m._remoteMacAddress[4],
-									m2m._remoteMacAddress[5],
+								m2mDirect.debug_uart_->printf_P(PSTR("\n\rRemote MAC address mismatch, wanted %02x%02x%02x%02x%02x%02x have %02x%02x%02x%02x%02x%02x"),
+									m2mDirect._remoteMacAddress[0],
+									m2mDirect._remoteMacAddress[1],
+									m2mDirect._remoteMacAddress[2],
+									m2mDirect._remoteMacAddress[3],
+									m2mDirect._remoteMacAddress[4],
+									m2mDirect._remoteMacAddress[5],
 									receivedMessage[2],
 									receivedMessage[3],
 									receivedMessage[4],
@@ -1317,19 +1317,19 @@ bool ICACHE_FLASH_ATTR m2mDirectClass::_initialiseEspNowCallbacks()
 									receivedMessage[7]
 								);
 							}
-							if(memcmp(&receivedMessage[8], m2m._localEncryptionKey, ENCRYPTION_KEY_LENGTH) != 0)
+							if(memcmp(&receivedMessage[8], m2mDirect._localEncryptionKey, ENCRYPTION_KEY_LENGTH) != 0)
 							{
-								m2m.debug_uart_->print(F("\n\rLocal encryption key mismatch"));
+								m2mDirect.debug_uart_->print(F("\n\rLocal encryption key mismatch"));
 							}
-							if(memcmp(&receivedMessage[24], m2m._localMacAddress, MAC_ADDRESS_LENGTH) != 0)
+							if(memcmp(&receivedMessage[24], m2mDirect._localMacAddress, MAC_ADDRESS_LENGTH) != 0)
 							{
-								m2m.debug_uart_->printf_P(PSTR("\n\rLocal MAC address mismatch, wanted %02x%02x%02x%02x%02x%02x have %02x%02x%02x%02x%02x%02x"),
-									m2m._localMacAddress[0],
-									m2m._localMacAddress[1],
-									m2m._localMacAddress[2],
-									m2m._localMacAddress[3],
-									m2m._localMacAddress[4],
-									m2m._localMacAddress[5],
+								m2mDirect.debug_uart_->printf_P(PSTR("\n\rLocal MAC address mismatch, wanted %02x%02x%02x%02x%02x%02x have %02x%02x%02x%02x%02x%02x"),
+									m2mDirect._localMacAddress[0],
+									m2mDirect._localMacAddress[1],
+									m2mDirect._localMacAddress[2],
+									m2mDirect._localMacAddress[3],
+									m2mDirect._localMacAddress[4],
+									m2mDirect._localMacAddress[5],
 									receivedMessage[24],
 									receivedMessage[25],
 									receivedMessage[26],
@@ -1338,208 +1338,208 @@ bool ICACHE_FLASH_ATTR m2mDirectClass::_initialiseEspNowCallbacks()
 									receivedMessage[29]
 								);
 							}
-							if(memcmp(&receivedMessage[30], m2m._localEncryptionKey, ENCRYPTION_KEY_LENGTH) != 0)
+							if(memcmp(&receivedMessage[30], m2mDirect._localEncryptionKey, ENCRYPTION_KEY_LENGTH) != 0)
 							{
-								m2m.debug_uart_->print(F("\n\rLocal encryption key"));
+								m2mDirect.debug_uart_->print(F("\n\rLocal encryption key"));
 							}
 						}
 					}
 				}
-				else if(m2m.state == m2mDirectState::paired)
+				else if(m2mDirect.state == m2mDirectState::paired)
 				{
 					if(	//Matches the expected communication channel
-						receivedMessage[1] == m2m._communicationChannel &&
+						receivedMessage[1] == m2mDirect._communicationChannel &&
 						//Matches the remote MAC address
-						memcmp(&receivedMessage[2], m2m._remoteMacAddress, MAC_ADDRESS_LENGTH) == 0 &&
+						memcmp(&receivedMessage[2], m2mDirect._remoteMacAddress, MAC_ADDRESS_LENGTH) == 0 &&
 						//Matches the local MAC address
-						memcmp(&receivedMessage[8], m2m._localMacAddress, MAC_ADDRESS_LENGTH) == 0 &&
+						memcmp(&receivedMessage[8], m2mDirect._localMacAddress, MAC_ADDRESS_LENGTH) == 0 &&
 						//Matches the remote encryption key
-						memcmp(&receivedMessage[14], m2m._primaryEncryptionKey, ENCRYPTION_KEY_LENGTH) == 0 &&
+						memcmp(&receivedMessage[14], m2mDirect._primaryEncryptionKey, ENCRYPTION_KEY_LENGTH) == 0 &&
 						//Matches the local encryption key
-						memcmp(&receivedMessage[30], m2m._localEncryptionKey, ENCRYPTION_KEY_LENGTH) == 0
+						memcmp(&receivedMessage[30], m2mDirect._localEncryptionKey, ENCRYPTION_KEY_LENGTH) == 0
 					)
 					{
-						if(m2m._tieBreak(m2m._localMacAddress, (uint8_t*)&receivedMessage[2]))
+						if(m2mDirect._tieBreak(m2mDirect._localMacAddress, (uint8_t*)&receivedMessage[2]))
 						{
 							//Both ends match, move to connecting
-							if(m2m.debug_uart_ != nullptr)
+							if(m2mDirect.debug_uart_ != nullptr)
 							{
-								m2m.debug_uart_->print(F("\n\rTie winner, connecting"));
+								m2mDirect.debug_uart_->print(F("\n\rTie winner, connecting"));
 							}
-							m2m.state = m2mDirectState::connecting;
-							m2m._indicatorTimerInterval = M2M_DIRECT_INDICATOR_LED_CONNECTING_INTERVAL;
-							if(m2m.debug_uart_ != nullptr)
+							m2mDirect.state = m2mDirectState::connecting;
+							m2mDirect._indicatorTimerInterval = M2M_DIRECT_INDICATOR_LED_CONNECTING_INTERVAL;
+							if(m2mDirect.debug_uart_ != nullptr)
 							{
-								m2m._debugState();
+								m2mDirect._debugState();
 							}
 						}
 						else
 						{
-							if(m2m.debug_uart_ != nullptr)
+							if(m2mDirect.debug_uart_ != nullptr)
 							{
-								m2m.debug_uart_->print(F("\n\rTie loser, waiting for connection"));
+								m2mDirect.debug_uart_->print(F("\n\rTie loser, waiting for connection"));
 							}
 						}
 					}
 					else
 					{
-						if(m2m.debug_uart_ != nullptr)
+						if(m2mDirect.debug_uart_ != nullptr)
 						{
-							m2m.debug_uart_->print(F("\n\rPairing ACK doesn't match"));
+							m2mDirect.debug_uart_->print(F("\n\rPairing ACK doesn't match"));
 						}
 					}
 				}
-				else if(m2m.state == m2mDirectState::connecting)
+				else if(m2mDirect.state == m2mDirectState::connecting)
 				{
-					if(m2m.debug_uart_ != nullptr)
+					if(m2mDirect.debug_uart_ != nullptr)
 					{
-						m2m.debug_uart_->print(F("\n\rIgnoring pairing ACK message, already connecting"));
+						m2mDirect.debug_uart_->print(F("\n\rIgnoring pairing ACK message, already connecting"));
 					}
 				}
-				else if(m2m.state == m2mDirectState::connected)
+				else if(m2mDirect.state == m2mDirectState::connected)
 				{
-					if(m2m.debug_uart_ != nullptr)
+					if(m2mDirect.debug_uart_ != nullptr)
 					{
-						m2m.debug_uart_->print(F("\n\rIgnoring pairing ACK message, already connected"));
+						m2mDirect.debug_uart_->print(F("\n\rIgnoring pairing ACK message, already connected"));
 					}
 				}
 				else
 				{
-					if(m2m.debug_uart_ != nullptr)
+					if(m2mDirect.debug_uart_ != nullptr)
 					{
-						m2m.debug_uart_->print(F("\n\rIgnoring pairing ACK message, unexpected state"));
+						m2mDirect.debug_uart_->print(F("\n\rIgnoring pairing ACK message, unexpected state"));
 					}
 				}
 			}
 			else if(receivedMessage[0] == M2M_DIRECT_KEEPALIVE_FLAG)
 			{
 				//Extract the local/remote activity timers for echo quality calculations
-				m2m._remoteActivityTimer  =	receivedMessage[14] << 24;
-				m2m._remoteActivityTimer+=receivedMessage[15] << 16;
-				m2m._remoteActivityTimer+=receivedMessage[16] << 8;
-				m2m._remoteActivityTimer+=receivedMessage[17];
-				m2m.receivedLocalActivityTimer = receivedMessage[18] << 24;
-				m2m.receivedLocalActivityTimer+=receivedMessage[19] << 16;
-				m2m.receivedLocalActivityTimer+=receivedMessage[20] << 8;
-				m2m.receivedLocalActivityTimer+=receivedMessage[21];
+				m2mDirect._remoteActivityTimer  =	receivedMessage[14] << 24;
+				m2mDirect._remoteActivityTimer+=receivedMessage[15] << 16;
+				m2mDirect._remoteActivityTimer+=receivedMessage[16] << 8;
+				m2mDirect._remoteActivityTimer+=receivedMessage[17];
+				m2mDirect.receivedLocalActivityTimer = receivedMessage[18] << 24;
+				m2mDirect.receivedLocalActivityTimer+=receivedMessage[19] << 16;
+				m2mDirect.receivedLocalActivityTimer+=receivedMessage[20] << 8;
+				m2mDirect.receivedLocalActivityTimer+=receivedMessage[21];
 				//Reduce echo quality
-				m2m._echoQuality = m2m._echoQuality >> 1;
-				if(m2m.state == m2mDirectState::pairing) //Getting here implies pairing failed
+				m2mDirect._echoQuality = m2mDirect._echoQuality >> 1;
+				if(m2mDirect.state == m2mDirectState::pairing) //Getting here implies pairing failed
 				{
-					if(m2m.debug_uart_ != nullptr)
+					if(m2mDirect.debug_uart_ != nullptr)
 					{
-						m2m.debug_uart_->print(F("\n\rPairing failed"));
+						m2mDirect.debug_uart_->print(F("\n\rPairing failed"));
 					}
 				}
 				//Normal state of affairs. Start connecting with keepalives, which don't include keys
-				else if(m2m.state == m2mDirectState::paired)
+				else if(m2mDirect.state == m2mDirectState::paired)
 				{
 					if(
 						//Match the expected communication channel
-						receivedMessage[1] == m2m._communicationChannel &&
+						receivedMessage[1] == m2mDirect._communicationChannel &&
 						//Matches the remote MAC address
-						memcmp(&receivedMessage[2], m2m._remoteMacAddress, MAC_ADDRESS_LENGTH) == 0 &&
+						memcmp(&receivedMessage[2], m2mDirect._remoteMacAddress, MAC_ADDRESS_LENGTH) == 0 &&
 						//Matches the local MAC address
-						memcmp(&receivedMessage[8], m2m._localMacAddress, MAC_ADDRESS_LENGTH) == 0
+						memcmp(&receivedMessage[8], m2mDirect._localMacAddress, MAC_ADDRESS_LENGTH) == 0
 					)
 					{
-						if(m2m.debug_uart_ != nullptr)
+						if(m2mDirect.debug_uart_ != nullptr)
 						{
-							m2m.debug_uart_->print(F("\n\rPaired, connecting"));
+							m2mDirect.debug_uart_->print(F("\n\rPaired, connecting"));
 						}
-						m2m.state = m2mDirectState::connecting;
-						m2m._indicatorTimerInterval = M2M_DIRECT_INDICATOR_LED_CONNECTING_INTERVAL;
-						if(m2m.debug_uart_ != nullptr)
+						m2mDirect.state = m2mDirectState::connecting;
+						m2mDirect._indicatorTimerInterval = M2M_DIRECT_INDICATOR_LED_CONNECTING_INTERVAL;
+						if(m2mDirect.debug_uart_ != nullptr)
 						{
-							m2m._debugState();
+							m2mDirect._debugState();
 						}
 					}
 					else
 					{
-						if(m2m.debug_uart_ != nullptr)
+						if(m2mDirect.debug_uart_ != nullptr)
 						{
-							m2m.debug_uart_->print(F(" unexpected contents"));
+							m2mDirect.debug_uart_->print(F(" unexpected contents"));
 						}
 					}
 				}
-				else if(m2m.state == m2mDirectState::connecting || m2m.state == m2mDirectState::connected || m2m.state == m2mDirectState::disconnected)
+				else if(m2mDirect.state == m2mDirectState::connecting || m2mDirect.state == m2mDirectState::connected || m2mDirect.state == m2mDirectState::disconnected)
 				{
 					if(
 						//Match the expected communication channel
-						receivedMessage[1] == m2m._communicationChannel &&
+						receivedMessage[1] == m2mDirect._communicationChannel &&
 						//Matches the remote MAC address
-						memcmp(&receivedMessage[2], m2m._remoteMacAddress, MAC_ADDRESS_LENGTH) == 0 &&
+						memcmp(&receivedMessage[2], m2mDirect._remoteMacAddress, MAC_ADDRESS_LENGTH) == 0 &&
 						//Matches the local MAC address
-						memcmp(&receivedMessage[8], m2m._localMacAddress, MAC_ADDRESS_LENGTH) == 0
+						memcmp(&receivedMessage[8], m2mDirect._localMacAddress, MAC_ADDRESS_LENGTH) == 0
 					)
 					{
-						if(m2m.receivedLocalActivityTimer == m2m._previouslocalActivityTimer)
+						if(m2mDirect.receivedLocalActivityTimer == m2mDirect._previouslocalActivityTimer)
 						{
-							m2m._echoQuality = m2m._echoQuality | 0x80000000; //Improve echo quality
-							if(m2m.debug_uart_ != nullptr)
+							m2mDirect._echoQuality = m2mDirect._echoQuality | 0x80000000; //Improve echo quality
+							if(m2mDirect.debug_uart_ != nullptr)
 							{
-								m2m.debug_uart_->print(F(" in sequence"));
+								m2mDirect.debug_uart_->print(F(" in sequence"));
 							}
 						}
 						else
 						{
-							if(m2m.debug_uart_ != nullptr)
+							if(m2mDirect.debug_uart_ != nullptr)
 							{
-								m2m.debug_uart_->print(F(" some missed, off by "));
-								m2m.debug_uart_->print(m2m._previouslocalActivityTimer - m2m.receivedLocalActivityTimer);
-								m2m.debug_uart_->print(F("ms"));
+								m2mDirect.debug_uart_->print(F(" some missed, off by "));
+								m2mDirect.debug_uart_->print(m2mDirect._previouslocalActivityTimer - m2mDirect.receivedLocalActivityTimer);
+								m2mDirect.debug_uart_->print(F("ms"));
 							}
 						}
 					}
 					else
 					{
-						if(m2m.debug_uart_ != nullptr)
+						if(m2mDirect.debug_uart_ != nullptr)
 						{
-							m2m.debug_uart_->print(F(" unexpected contents"));
+							m2mDirect.debug_uart_->print(F(" unexpected contents"));
 						}
 					}
 				}
 				else
 				{
-					if(m2m.debug_uart_ != nullptr)
+					if(m2mDirect.debug_uart_ != nullptr)
 					{
-						m2m.debug_uart_->print(F(" unexpected in state "));
-						m2m._printCurrentState();
+						m2mDirect.debug_uart_->print(F(" unexpected in state "));
+						m2mDirect._printCurrentState();
 					}
 				}
 			}
 			else if(receivedMessage[0] == M2M_DIRECT_DATA_FLAG)
 			{
-				if(m2m._receivedPacketBuffer[1] == 0)
+				if(m2mDirect._receivedPacketBuffer[1] == 0)
 				{
-					memcpy(m2m._receivedPacketBuffer, receivedMessage, receivedMessageLength);
-					m2m._dataReceived = true;
-					if(m2m.debug_uart_ != nullptr)
+					memcpy(m2mDirect._receivedPacketBuffer, receivedMessage, receivedMessageLength);
+					m2mDirect._dataReceived = true;
+					if(m2mDirect.debug_uart_ != nullptr)
 					{
-						m2m.debug_uart_->printf_P(PSTR(" %u fields"),m2m._receivedPacketBuffer[1]);
+						m2mDirect.debug_uart_->printf_P(PSTR(" %u fields"),m2mDirect._receivedPacketBuffer[1]);
 					}
 				}
 				else
 				{
-					if(m2m.debug_uart_ != nullptr)
+					if(m2mDirect.debug_uart_ != nullptr)
 					{
-						m2m.debug_uart_->print(F("\n\rReceived message discarded"));
+						m2mDirect.debug_uart_->print(F("\n\rReceived message discarded"));
 					}
 				}
 			}
 			else
 			{
-				if(m2m.debug_uart_ != nullptr)
+				if(m2mDirect.debug_uart_ != nullptr)
 				{
-					m2m.debug_uart_->printf_P(PSTR("\n\rUnknown message type %i"),receivedMessage[0]);
-					m2m.debug_uart_->print(F("\n\rData: "));
+					m2mDirect.debug_uart_->printf_P(PSTR("\n\rUnknown message type %i"),receivedMessage[0]);
+					m2mDirect.debug_uart_->print(F("\n\rData: "));
 					for (int i = 0; i < receivedMessageLength; i++) {
 						if(receivedMessage[i] < 0x10)
 						{
-							m2m.debug_uart_->print('0');
+							m2mDirect.debug_uart_->print('0');
 						}
-						m2m.debug_uart_->print(receivedMessage[i], HEX);
-						m2m.debug_uart_->print(' ');
+						m2mDirect.debug_uart_->print(receivedMessage[i], HEX);
+						m2mDirect.debug_uart_->print(' ');
 					}
 				}
 			}
@@ -1547,10 +1547,10 @@ bool ICACHE_FLASH_ATTR m2mDirectClass::_initialiseEspNowCallbacks()
 		#ifdef M2M_DIRECT_DEBUG_SEND
 		else
 		{
-			if(m2m.debug_uart_ != nullptr)
+			if(m2mDirect.debug_uart_ != nullptr)
 			{
-				m2m.debug_uart_->printf_P(PSTR(" CRC:%08x "),  receivedCrc);
-				m2m.debug_uart_->printf("not valid, calculated CRC %08x",crc.calc());
+				m2mDirect.debug_uart_->printf_P(PSTR(" CRC:%08x "),  receivedCrc);
+				m2mDirect.debug_uart_->printf("not valid, calculated CRC %08x",crc.calc());
 			}
 		}
 		#endif
@@ -1558,14 +1558,14 @@ bool ICACHE_FLASH_ATTR m2mDirectClass::_initialiseEspNowCallbacks()
 	{
 		if(debug_uart_ != nullptr)
 		{
-			m2m.debug_uart_->print(F("OK"));
+			m2mDirect.debug_uart_->print(F("OK"));
 		}
 	}
 	else
 	{
 		if(debug_uart_ != nullptr)
 		{
-			m2m.debug_uart_->print(F("Failed"));
+			m2mDirect.debug_uart_->print(F("Failed"));
 		}
 		return false;
 	}
@@ -1578,32 +1578,32 @@ bool ICACHE_FLASH_ATTR m2mDirectClass::_initialiseEspNowCallbacks()
 	#elif defined ESP32
 	if(esp_now_register_send_cb([](const uint8_t* macAddress, esp_now_send_status_t status) {
 	#endif
-		if(m2m._waitingForSendCallback == true &&
-			macAddress[0] == m2m._remoteMacAddress[0] &&
-			macAddress[1] == m2m._remoteMacAddress[1] &&
-			macAddress[2] == m2m._remoteMacAddress[2] &&
-			macAddress[3] == m2m._remoteMacAddress[3] &&
-			macAddress[4] == m2m._remoteMacAddress[4] &&
-			macAddress[5] == m2m._remoteMacAddress[5]
+		if(m2mDirect._waitingForSendCallback == true &&
+			macAddress[0] == m2mDirect._remoteMacAddress[0] &&
+			macAddress[1] == m2mDirect._remoteMacAddress[1] &&
+			macAddress[2] == m2mDirect._remoteMacAddress[2] &&
+			macAddress[3] == m2mDirect._remoteMacAddress[3] &&
+			macAddress[4] == m2mDirect._remoteMacAddress[4] &&
+			macAddress[5] == m2mDirect._remoteMacAddress[5]
 		)
 		{
 		  if(status == ESP_OK)
 		  {
-			m2m._waitingForSendCallback = false;
+			m2mDirect._waitingForSendCallback = false;
 		  }
 		}
 	}) == ESP_OK)
 	{
 		if(debug_uart_ != nullptr)
 		{
-			m2m.debug_uart_->print(F("OK"));
+			m2mDirect.debug_uart_->print(F("OK"));
 		}
 	}
 	else
 	{
 		if(debug_uart_ != nullptr)
 		{
-			m2m.debug_uart_->print(F("Failed"));
+			m2mDirect.debug_uart_->print(F("Failed"));
 		}
 		return false;
 	}
@@ -2359,9 +2359,9 @@ void ICACHE_FLASH_ATTR m2mDirectClass::clearReceivedMessage()
 {
 	_receivedPacketBuffer[1] = 0;		//Reset the field count for the next message
 	_receivedPacketBufferPosition = 2;	//Reset the buffer position for the next message
-	if(m2m.debug_uart_ != nullptr)
+	if(m2mDirect.debug_uart_ != nullptr)
 	{
-		m2m.debug_uart_->print(F("\n\rReceived message cleared"));
+		m2mDirect.debug_uart_->print(F("\n\rReceived message cleared"));
 	}
 }
 /*
@@ -2724,9 +2724,9 @@ bool ICACHE_FLASH_ATTR m2mDirectClass::_remoteMacAddressSet()
 bool ICACHE_FLASH_ATTR m2mDirectClass::_readPairingInfo()
 {
 	#if defined(ESP8266)
-		if(m2m.debug_uart_ != nullptr)
+		if(m2mDirect.debug_uart_ != nullptr)
 		{
-			m2m.debug_uart_->print(F("\n\rReading pairing info from EEPROM: "));
+			m2mDirect.debug_uart_->print(F("\n\rReading pairing info from EEPROM: "));
 		}
 		uint8_t eepromData[EEPROM_DATA_SIZE];
 		for(uint8_t address = 0; address < EEPROM_DATA_SIZE; address++)
@@ -2741,10 +2741,10 @@ bool ICACHE_FLASH_ATTR m2mDirectClass::_readPairingInfo()
 		crcFromEEPROM+=uint32_t(eepromData[38]) << 24;
 		if(crc.calc() == crcFromEEPROM)
 		{
-			if(m2m.debug_uart_ != nullptr)
+			if(m2mDirect.debug_uart_ != nullptr)
 			{
-				m2m.debug_uart_->print(F("OK CRC: "));
-				m2m.debug_uart_->print(crcFromEEPROM);
+				m2mDirect.debug_uart_->print(F("OK CRC: "));
+				m2mDirect.debug_uart_->print(crcFromEEPROM);
 			}
 			for(uint8_t address = 0; address < 6; address++)
 			{
@@ -2758,7 +2758,7 @@ bool ICACHE_FLASH_ATTR m2mDirectClass::_readPairingInfo()
 			{
 				 _localEncryptionKey[address - 22] = eepromData[address];
 			}
-			if(m2m.debug_uart_ != nullptr)
+			if(m2mDirect.debug_uart_ != nullptr)
 			{
 				Serial.printf_P(PSTR("OK\r\n\tMAC address:%02x%02x%02x%02x%02x%02x\r\n\tPrimary encryption key:%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x\r\n\tLocal encryption key: %02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x"), _remoteMacAddress, _primaryEncryptionKey, _localEncryptionKey);
 			}
@@ -2766,15 +2766,15 @@ bool ICACHE_FLASH_ATTR m2mDirectClass::_readPairingInfo()
 		}
 		else
 		{
-			if(m2m.debug_uart_ != nullptr)
+			if(m2mDirect.debug_uart_ != nullptr)
 			{
-				m2m.debug_uart_->print(F("invalid CRC32"));
+				m2mDirect.debug_uart_->print(F("invalid CRC32"));
 			}
 		}
 	#elif defined ESP32
-		if(m2m.debug_uart_ != nullptr)
+		if(m2mDirect.debug_uart_ != nullptr)
 		{
-			m2m.debug_uart_->print(F("\n\rReading pairing info from Preferences: "));
+			m2mDirect.debug_uart_->print(F("\n\rReading pairing info from Preferences: "));
 		}
 		uint8_t successes = 0;
 		settings.begin(preferencesNamespace, false);
@@ -2794,7 +2794,7 @@ bool ICACHE_FLASH_ATTR m2mDirectClass::_readPairingInfo()
 		settings.end();
 		if(successes >= 38)
 		{
-			if(m2m.debug_uart_ != nullptr)
+			if(m2mDirect.debug_uart_ != nullptr)
 			{
 				Serial.printf_P(PSTR("OK\r\n\tMAC address:%02x%02x%02x%02x%02x%02x\r\n\tPrimary encryption key:%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x\r\n\tLocal encryption key: %02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x"),
 				_remoteMacAddress[0],
@@ -2844,9 +2844,9 @@ bool ICACHE_FLASH_ATTR m2mDirectClass::_readPairingInfo()
 			}
 			return true;
 		}
-		if(m2m.debug_uart_ != nullptr)
+		if(m2mDirect.debug_uart_ != nullptr)
 		{
-			m2m.debug_uart_->print(F("failed"));
+			m2mDirect.debug_uart_->print(F("failed"));
 		}
 	#endif
 	return false;
@@ -2859,9 +2859,9 @@ bool ICACHE_FLASH_ATTR m2mDirectClass::_readPairingInfo()
 bool ICACHE_FLASH_ATTR m2mDirectClass::_writePairingInfo()
 {
 	#if defined(ESP8266)
-	if(m2m.debug_uart_ != nullptr)
+	if(m2mDirect.debug_uart_ != nullptr)
 	{
-		m2m.debug_uart_->print(F("\n\rWriting pairing info to EEPROM: "));
+		m2mDirect.debug_uart_->print(F("\n\rWriting pairing info to EEPROM: "));
 	}
 	uint8_t eepromData[EEPROM_DATA_SIZE];
 	for(uint8_t address = 0; address < 6; address++)
@@ -2888,22 +2888,22 @@ bool ICACHE_FLASH_ATTR m2mDirectClass::_writePairingInfo()
 	}
 	if(EEPROM.commit())
 	{
-		if(m2m.debug_uart_ != nullptr)
+		if(m2mDirect.debug_uart_ != nullptr)
 		{
-			m2m.debug_uart_->print(F("OK CRC: "));
-			m2m.debug_uart_->print(crc.calc());
+			m2mDirect.debug_uart_->print(F("OK CRC: "));
+			m2mDirect.debug_uart_->print(crc.calc());
 		}
 		return true;
 	}
-	if(m2m.debug_uart_ != nullptr)
+	if(m2mDirect.debug_uart_ != nullptr)
 	{
-		m2m.debug_uart_->print(F("failed"));
+		m2mDirect.debug_uart_->print(F("failed"));
 	}
 	return false;
 	#elif defined ESP32
-	if(m2m.debug_uart_ != nullptr)
+	if(m2mDirect.debug_uart_ != nullptr)
 	{
-		m2m.debug_uart_->print(F("\n\rWriting pairing info to Preferences: "));
+		m2mDirect.debug_uart_->print(F("\n\rWriting pairing info to Preferences: "));
 	}
 	uint8_t successes = 0;
 	settings.begin(preferencesNamespace, false);
@@ -2918,15 +2918,15 @@ bool ICACHE_FLASH_ATTR m2mDirectClass::_writePairingInfo()
 	settings.end();
 	if(successes >= 38)
 	{
-		if(m2m.debug_uart_ != nullptr)
+		if(m2mDirect.debug_uart_ != nullptr)
 		{
 			Serial.println(F("OK"));
 		}
 		return true;
 	}
-	if(m2m.debug_uart_ != nullptr)
+	if(m2mDirect.debug_uart_ != nullptr)
 	{
-		m2m.debug_uart_->print(F("failed"));
+		m2mDirect.debug_uart_->print(F("failed"));
 	}
 	return false;
 	#endif
@@ -2939,9 +2939,9 @@ bool ICACHE_FLASH_ATTR m2mDirectClass::_writePairingInfo()
 bool ICACHE_FLASH_ATTR m2mDirectClass::_deletePairingInfo()
 {
 	#if defined(ESP8266)
-		if(m2m.debug_uart_ != nullptr)
+		if(m2mDirect.debug_uart_ != nullptr)
 		{
-			m2m.debug_uart_->print(F("\n\rDeleting pairing from EEPROM: "));
+			m2mDirect.debug_uart_->print(F("\n\rDeleting pairing from EEPROM: "));
 		}
 		for(uint8_t address = 0; address < EEPROM_DATA_SIZE; address++)
 		{
@@ -2949,9 +2949,9 @@ bool ICACHE_FLASH_ATTR m2mDirectClass::_deletePairingInfo()
 		}
 		if(EEPROM.commit())
 		{
-			if(m2m.debug_uart_ != nullptr)
+			if(m2mDirect.debug_uart_ != nullptr)
 			{
-				m2m.debug_uart_->print(F("OK"));
+				m2mDirect.debug_uart_->print(F("OK"));
 			}
 			esp_now_del_peer(_remoteMacAddress);
 			for(uint8_t address = 0; address < 6; address++)
@@ -2971,9 +2971,9 @@ bool ICACHE_FLASH_ATTR m2mDirectClass::_deletePairingInfo()
 			return true;
 		}
 	#elif defined ESP32
-		if(m2m.debug_uart_ != nullptr)
+		if(m2mDirect.debug_uart_ != nullptr)
 		{
-			m2m.debug_uart_->print(F("\n\rDeleting pairing from Preferences: "));
+			m2mDirect.debug_uart_->print(F("\n\rDeleting pairing from Preferences: "));
 		}
 		uint8_t successes = 0;
 		settings.begin(preferencesNamespace, false);
@@ -2995,9 +2995,9 @@ bool ICACHE_FLASH_ATTR m2mDirectClass::_deletePairingInfo()
 		}
 		if(successes >= 4)
 		{
-			if(m2m.debug_uart_ != nullptr)
+			if(m2mDirect.debug_uart_ != nullptr)
 			{
-				m2m.debug_uart_->print(F("OK"));
+				m2mDirect.debug_uart_->print(F("OK"));
 			}
 		}
 		if(remoteDeviceName != nullptr)
@@ -3007,9 +3007,9 @@ bool ICACHE_FLASH_ATTR m2mDirectClass::_deletePairingInfo()
 		}
 		return true;
 	#endif
-	if(m2m.debug_uart_ != nullptr)
+	if(m2mDirect.debug_uart_ != nullptr)
 	{
-		m2m.debug_uart_->print(F("failed"));
+		m2mDirect.debug_uart_->print(F("failed"));
 	}
 	return false;
 }
@@ -3125,5 +3125,5 @@ void ICACHE_FLASH_ATTR m2mDirectClass::setAutomaticTxPower(bool setting)
 {
 	_automaticTxPower = setting;
 }
-m2mDirectClass m2m;	//Create an instance of the class, as only one is practically usable at a time
+m2mDirectClass m2mDirect;	//Create an instance of the class, as only one is practically usable at a time
 #endif

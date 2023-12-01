@@ -597,5 +597,5 @@ class m2mDirectClass	{
 		bool _reduceTxPower();														//Reduce the Tx power
 		bool _increaseTxPower();													//Increase the Tx power
 };
-extern m2mDirectClass m2m;	//Create an instance of the class, as only one is practically usable at a time
+extern m2mDirectClass m2mDirect;	//Create an instance of the class, as only one is practically usable at a time
 #endif

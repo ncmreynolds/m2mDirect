@@ -33,10 +33,10 @@ void onPairStart()
  */
 void onPaired()
 {
-  if(m2m.remoteNameSet() == true)
+  if(m2mDirect.remoteNameSet() == true)
   {
     Serial.print(F("\n\rPaired with device: "));
-    Serial.print(m2m.remoteName());
+    Serial.print(m2mDirect.remoteName());
   }
   else
   {
@@ -50,10 +50,10 @@ void onPaired()
  */
 void onConnected()
 {
-  if(m2m.remoteNameSet() == true)
+  if(m2mDirect.remoteNameSet() == true)
   {
     Serial.print(F("\n\rConnected to device: "));
-    Serial.print(m2m.remoteName());
+    Serial.print(m2mDirect.remoteName());
   }
   else
   {
@@ -68,10 +68,10 @@ void onConnected()
  */
 void onDisconnected()
 {
-  if(m2m.remoteNameSet() == true)
+  if(m2mDirect.remoteNameSet() == true)
   {
     Serial.print(F("\n\rDisconnected from device: "));
-    Serial.print(m2m.remoteName());
+    Serial.print(m2mDirect.remoteName());
   }
   else
   {
@@ -85,8 +85,8 @@ void onDisconnected()
  */
 void onMessageReceived()
 {
-  Serial.printf(PSTR("\n\rReceived message, link quality: %02x\ discarded"),m2m.linkQuality());
-  m2m.clearReceivedMessage();  //Clear the received message to wait for the next message
+  Serial.printf(PSTR("\n\rReceived message, link quality: %02x\ discarded"),m2mDirect.linkQuality());
+  m2mDirect.clearReceivedMessage();  //Clear the received message to wait for the next message
 }
 uint32_t lastSend = 0;
 uint8_t fieldsToSend = 0;
@@ -99,31 +99,31 @@ void setup()
 {
   Serial.begin(115200); //Start the serial interface for debug
   delay(500); //Give some time for the Serial Monitor to come online
-  //m2m.debug(Serial);  //Tell the library to use Serial for debug output
-  m2m.pairingButtonGpio(0); //Enable the pairing button on GPIO 0 which is often available on ESP board as the 'program' button
+  //m2mDirect.debug(Serial);  //Tell the library to use Serial for debug output
+  m2mDirect.pairingButtonGpio(0); //Enable the pairing button on GPIO 0 which is often available on ESP board as the 'program' button
   #ifdef LED_BUILTIN
-    m2m.indicatorGpio(LED_BUILTIN);  //Enable the indicator LED
+    m2mDirect.indicatorGpio(LED_BUILTIN);  //Enable the indicator LED
   #endif
-  m2m.localName(name);  //Set the name of the device
-  m2m.setPairingCallback(onPairStart);  //Set the 'pairing' callback created above
-  m2m.setPairedCallback(onPaired);  //Set the 'paired' callback created above
-  m2m.setConnectedCallback(onConnected);  //Set the 'connected' callback created above
-  m2m.setDisconnectedCallback(onDisconnected);  //Set the 'disconnected' callback created above
-  m2m.setMessageReceivedCallback(onMessageReceived);  //Set the 'message received' callback created above
-  m2m.setAutomaticTxPower(true); //Enable automatic adjustment of transmit power (default, use false to disable this)
-  m2m.begin(1);  //Start the M2M connection
+  m2mDirect.localName(name);  //Set the name of the device
+  m2mDirect.setPairingCallback(onPairStart);  //Set the 'pairing' callback created above
+  m2mDirect.setPairedCallback(onPaired);  //Set the 'paired' callback created above
+  m2mDirect.setConnectedCallback(onConnected);  //Set the 'connected' callback created above
+  m2mDirect.setDisconnectedCallback(onDisconnected);  //Set the 'disconnected' callback created above
+  m2mDirect.setMessageReceivedCallback(onMessageReceived);  //Set the 'message received' callback created above
+  m2mDirect.setAutomaticTxPower(true); //Enable automatic adjustment of transmit power (default, use false to disable this)
+  m2mDirect.begin(1);  //Start the M2M connection
 }
 
 void loop()
 {
-  m2m.housekeeping(); //Maintain the M2M connection
+  m2mDirect.housekeeping(); //Maintain the M2M connection
   if(millis() - lastSend > 10000)
   {
     lastSend = millis();
-    if(m2m.connected())
+    if(m2mDirect.connected())
     {
       fieldsToSend = random(1,16);
-      Serial.printf(PSTR("\r\nSending message with %u fields, link quality: %02x"),fieldsToSend , m2m.linkQuality());
+      Serial.printf(PSTR("\r\nSending message with %u fields, link quality: %02x"),fieldsToSend , m2mDirect.linkQuality());
       while(fieldsToSend > 0)
       {
         //typeToSend = 0;
@@ -171,7 +171,7 @@ void loop()
           break;
         }
       }
-      if(m2m.sendMessage())
+      if(m2mDirect.sendMessage())
       {
         #ifdef DEBUG
           Serial.print(F(" sent"));
@@ -194,7 +194,7 @@ void addRandomBool()
     bool valueToSend = randomBool();
     Serial.print(F("\r\n\tbool: "));
     Serial.print(valueToSend == true ? "true" : "false");
-    if(m2m.add(valueToSend) == false)
+    if(m2mDirect.add(valueToSend) == false)
     {
       Serial.print(F(" failed"));
     }
@@ -212,7 +212,7 @@ void addRandomBool()
       Serial.print(valuesToSend[index] == true ? "true": "false");
       Serial.print(' ');
     }
-    if(m2m.add(valuesToSend, arraySize) == false)
+    if(m2mDirect.add(valuesToSend, arraySize) == false)
     {
       Serial.print(F("failed"));
     }
@@ -234,7 +234,7 @@ void addRandomUint8_t()
     uint8_t valueToSend = randomUint8_t();
     Serial.print(F("\r\n\tuint8_t: "));
     Serial.print(valueToSend);
-    if(m2m.add(valueToSend) == false)
+    if(m2mDirect.add(valueToSend) == false)
     {
       Serial.print(F(" failed"));
     }
@@ -252,7 +252,7 @@ void addRandomUint8_t()
       Serial.print(valuesToSend[index]);
       Serial.print(' ');
     }
-    if(m2m.add(valuesToSend, arraySize) == false)
+    if(m2mDirect.add(valuesToSend, arraySize) == false)
     {
       Serial.print(F("failed"));
     }
@@ -270,7 +270,7 @@ void addRandomUint16_t()
     uint16_t valueToSend = randomUint16_t();
     Serial.print(F("\r\n\tuint16_t: "));
     Serial.print(valueToSend);
-    if(m2m.add(valueToSend) == false)
+    if(m2mDirect.add(valueToSend) == false)
     {
       Serial.print(F(" failed"));
     }
@@ -288,7 +288,7 @@ void addRandomUint16_t()
       Serial.print(valuesToSend[index]);
       Serial.print(' ');
     }
-    if(m2m.add(valuesToSend, arraySize) == false)
+    if(m2mDirect.add(valuesToSend, arraySize) == false)
     {
       Serial.print(F("failed"));
     }
@@ -306,7 +306,7 @@ void addRandomUint32_t()
     uint32_t valueToSend3 = randomUint32_t();
     Serial.print(F("\r\n\tuint32_t: "));
     Serial.print(valueToSend3);
-    if(m2m.add(valueToSend3) == false)
+    if(m2mDirect.add(valueToSend3) == false)
     {
       Serial.print(F(" failed"));
     }
@@ -324,7 +324,7 @@ void addRandomUint32_t()
       Serial.print(valuesToSend[index]);
       Serial.print(' ');
     }
-    if(m2m.add(valuesToSend, arraySize) == false)
+    if(m2mDirect.add(valuesToSend, arraySize) == false)
     {
       Serial.print(F("failed"));
     }
@@ -344,7 +344,7 @@ void addRandomUint64_t()
     uint64_t valueToSend = randomUint64_t();
     Serial.print(F("\r\n\tuint64_t: "));
     Serial.print(valueToSend);
-    if(m2m.add(valueToSend) == false)
+    if(m2mDirect.add(valueToSend) == false)
     {
       Serial.print(F(" failed"));
     }
@@ -362,7 +362,7 @@ void addRandomUint64_t()
       Serial.print(valuesToSend[index]);
       Serial.print(' ');
     }
-    if(m2m.add(valuesToSend, arraySize) == false)
+    if(m2mDirect.add(valuesToSend, arraySize) == false)
     {
       Serial.print(F("failed"));
     }
@@ -384,7 +384,7 @@ void addRandomInt8_t()
     int8_t valueToSend = randomInt8_t();
     Serial.print(F("\r\n\tint8_t: "));
     Serial.print(valueToSend);
-    if(m2m.add(valueToSend) == false)
+    if(m2mDirect.add(valueToSend) == false)
     {
       Serial.print(F(" failed"));
     }
@@ -402,7 +402,7 @@ void addRandomInt8_t()
       Serial.print(valuesToSend[index]);
       Serial.print(' ');
     }
-    if(m2m.add(valuesToSend, arraySize) == false)
+    if(m2mDirect.add(valuesToSend, arraySize) == false)
     {
       Serial.print(F("failed"));
     }
@@ -420,7 +420,7 @@ void addRandomInt16_t()
     int16_t valueToSend = randomInt16_t();
     Serial.print(F("\r\n\tint16_t: "));
     Serial.print(valueToSend);
-    if(m2m.add(valueToSend) == false)
+    if(m2mDirect.add(valueToSend) == false)
     {
       Serial.print(F(" failed"));
     }
@@ -438,7 +438,7 @@ void addRandomInt16_t()
       Serial.print(valuesToSend[index]);
       Serial.print(' ');
     }
-    if(m2m.add(valuesToSend, arraySize) == false)
+    if(m2mDirect.add(valuesToSend, arraySize) == false)
     {
       Serial.print(F("failed"));
     }
@@ -456,7 +456,7 @@ void addRandomInt32_t()
     int32_t valueToSend = randomInt32_t();
     Serial.print(F("\r\n\tint32_t: "));
     Serial.print(valueToSend);
-    if(m2m.add(valueToSend) == false)
+    if(m2mDirect.add(valueToSend) == false)
     {
       Serial.print(F(" failed"));
     }
@@ -474,7 +474,7 @@ void addRandomInt32_t()
       Serial.print(valuesToSend[index]);
       Serial.print(' ');
     }
-    if(m2m.add(valuesToSend, arraySize) == false)
+    if(m2mDirect.add(valuesToSend, arraySize) == false)
     {
       Serial.print(F("failed"));
     }
@@ -494,7 +494,7 @@ void addRandomInt64_t()
     int64_t valueToSend = randomInt64_t();
     Serial.print(F("\r\n\tint64_t: "));
     Serial.print(valueToSend);
-    if(m2m.add(valueToSend) == false)
+    if(m2mDirect.add(valueToSend) == false)
     {
       Serial.print(F(" failed"));
     }
@@ -512,7 +512,7 @@ void addRandomInt64_t()
       Serial.print(valuesToSend[index]);
       Serial.print(' ');
     }
-    if(m2m.add(valuesToSend, arraySize) == false)
+    if(m2mDirect.add(valuesToSend, arraySize) == false)
     {
       Serial.print(F("failed"));
     }
@@ -534,7 +534,7 @@ void addRandomFloat()
     float valueToSend = randomFloat();
     Serial.print(F("\r\n\tfloat: "));
     Serial.print(valueToSend);
-    if(m2m.add(valueToSend) == false)
+    if(m2mDirect.add(valueToSend) == false)
     {
       Serial.print(F(" failed"));
     }
@@ -552,7 +552,7 @@ void addRandomFloat()
       Serial.print(valuesToSend[index]);
       Serial.print(' ');
     }
-    if(m2m.add(valuesToSend, arraySize) == false)
+    if(m2mDirect.add(valuesToSend, arraySize) == false)
     {
       Serial.print(F("failed"));
     }
@@ -570,7 +570,7 @@ void addRandomDouble()
     double valueToSend = randomDouble();
     Serial.print(F("\r\n\tdouble: "));
     Serial.print(valueToSend);
-    if(m2m.add(valueToSend) == false)
+    if(m2mDirect.add(valueToSend) == false)
     {
       Serial.print(F(" failed"));
     }
@@ -588,7 +588,7 @@ void addRandomDouble()
       Serial.print(valuesToSend[index]);
       Serial.print(' ');
     }
-    if(m2m.add(valuesToSend, arraySize) == false)
+    if(m2mDirect.add(valuesToSend, arraySize) == false)
     {
       Serial.print(F("failed"));
     }
@@ -607,7 +607,7 @@ void addRandomChar()
     Serial.print(F("\r\n\tchar: '"));
     Serial.print(valueToSend);
     Serial.print('\'');
-    if(m2m.add(valueToSend) == false)
+    if(m2mDirect.add(valueToSend) == false)
     {
       Serial.print(F(" failed"));
     }
@@ -626,7 +626,7 @@ void addRandomChar()
       Serial.print(valuesToSend[index]);
       Serial.print(F("' "));
     }
-    if(m2m.add(valuesToSend, arraySize) == false)
+    if(m2mDirect.add(valuesToSend, arraySize) == false)
     {
       Serial.print(F("failed"));
     }
@@ -647,7 +647,7 @@ void addRandomStr()
       Serial.print(F("] array: '"));
       Serial.print(shortTestStr);
       Serial.print('\'');
-      if(m2m.addStr(shortTestStr) == false)
+      if(m2mDirect.addStr(shortTestStr) == false)
       {
         Serial.print(F(" failed"));
       }
@@ -659,7 +659,7 @@ void addRandomStr()
       Serial.print(F("] array: '"));
       Serial.print(mediumTestStr);
       Serial.print('\'');
-      if(m2m.addStr(mediumTestStr) == false)
+      if(m2mDirect.addStr(mediumTestStr) == false)
       {
         Serial.print(F(" failed"));
       }
@@ -671,7 +671,7 @@ void addRandomStr()
       Serial.print(F("] array: '"));
       Serial.print(utf8TestStr);
       Serial.print('\'');
-      if(m2m.addStr(utf8TestStr) == false)
+      if(m2mDirect.addStr(utf8TestStr) == false)
       {
         Serial.print(F(" failed"));
       }

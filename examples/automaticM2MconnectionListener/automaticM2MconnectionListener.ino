@@ -35,10 +35,10 @@ void onPairStart()
  */
 void onPaired()
 {
-  if(m2m.remoteNameSet() == true)
+  if(m2mDirect.remoteNameSet() == true)
   {
     Serial.print(F("\nPaired with device: "));
-    Serial.print(m2m.remoteName());
+    Serial.print(m2mDirect.remoteName());
   }
   else
   {
@@ -53,10 +53,10 @@ void onPaired()
  */
 void onConnected()
 {
-  if(m2m.remoteNameSet() == true)
+  if(m2mDirect.remoteNameSet() == true)
   {
     Serial.print(F("\nConnected to device: "));
-    Serial.print(m2m.remoteName());
+    Serial.print(m2mDirect.remoteName());
   }
   else
   {
@@ -71,10 +71,10 @@ void onConnected()
  */
 void onDisconnected()
 {
-  if(m2m.remoteNameSet() == true)
+  if(m2mDirect.remoteNameSet() == true)
   {
     Serial.print(F("\nDisconnected from device: "));
-    Serial.print(m2m.remoteName());
+    Serial.print(m2mDirect.remoteName());
   }
   else
   {
@@ -88,94 +88,94 @@ void onDisconnected()
  */
 void onMessageReceived()
 {
-  Serial.printf(PSTR("\n\rReceived message with %u data fields, link quality: %02x"), m2m.dataAvailable(), m2m.linkQuality());
-  while(m2m.dataAvailable() > 0) //dataAvailable is the number of fields of data in a message
+  Serial.printf(PSTR("\n\rReceived message with %u data fields, link quality: %02x"), m2mDirect.dataAvailable(), m2mDirect.linkQuality());
+  while(m2mDirect.dataAvailable() > 0) //dataAvailable is the number of fields of data in a message
   {
-    switch (m2m.nextDataType())
+    switch (m2mDirect.nextDataType())
     {
-      case m2m.DATA_BOOL:
+      case m2mDirect.DATA_BOOL:
         retrieveBool();
       break;
-      case m2m.DATA_BOOL_ARRAY:
+      case m2mDirect.DATA_BOOL_ARRAY:
         retrieveBoolArray();
       break;
-      case m2m.DATA_UINT8_T:
+      case m2mDirect.DATA_UINT8_T:
         retrieveUint8_t();
       break;
-      case m2m.DATA_UINT8_T_ARRAY:
+      case m2mDirect.DATA_UINT8_T_ARRAY:
         retrieveUint8_tArray();
       break;
-      case m2m.DATA_UINT16_T:
+      case m2mDirect.DATA_UINT16_T:
         retrieveUint16_t();
       break;
-      case m2m.DATA_UINT16_T_ARRAY:
+      case m2mDirect.DATA_UINT16_T_ARRAY:
         retrieveUint16_tArray();
       break;
-      case m2m.DATA_UINT32_T:
+      case m2mDirect.DATA_UINT32_T:
         retrieveUint32_t();
       break;
-      case m2m.DATA_UINT32_T_ARRAY:
+      case m2mDirect.DATA_UINT32_T_ARRAY:
         retrieveUint32_tArray();
       break;
-      case m2m.DATA_UINT64_T:
+      case m2mDirect.DATA_UINT64_T:
         retrieveUint64_t();
       break;
-      case m2m.DATA_UINT64_T_ARRAY:
+      case m2mDirect.DATA_UINT64_T_ARRAY:
         retrieveUint64_tArray();
       break;
-      case m2m.DATA_INT8_T:
+      case m2mDirect.DATA_INT8_T:
         retrieveInt8_t();
       break;
-      case m2m.DATA_INT8_T_ARRAY:
+      case m2mDirect.DATA_INT8_T_ARRAY:
         retrieveInt8_tArray();
       break;
-      case m2m.DATA_INT16_T:
+      case m2mDirect.DATA_INT16_T:
         retrieveInt16_t();
       break;
-      case m2m.DATA_INT16_T_ARRAY:
+      case m2mDirect.DATA_INT16_T_ARRAY:
         retrieveInt16_tArray();
       break;
-      case m2m.DATA_INT32_T:
+      case m2mDirect.DATA_INT32_T:
         retrieveInt32_t();
       break;
-      case m2m.DATA_INT32_T_ARRAY:
+      case m2mDirect.DATA_INT32_T_ARRAY:
         retrieveInt32_tArray();
       break;
-      case m2m.DATA_INT64_T:
+      case m2mDirect.DATA_INT64_T:
         retrieveInt64_t();
       break;
-      case m2m.DATA_INT64_T_ARRAY:
+      case m2mDirect.DATA_INT64_T_ARRAY:
         retrieveInt64_tArray();
       break;
-      case m2m.DATA_FLOAT:
+      case m2mDirect.DATA_FLOAT:
         retrieveFloat();
       break;
-      case m2m.DATA_FLOAT_ARRAY:
+      case m2mDirect.DATA_FLOAT_ARRAY:
         retrieveFloatArray();
       break;
-      case m2m.DATA_DOUBLE:
+      case m2mDirect.DATA_DOUBLE:
         retrieveDouble();
       break;
-      case m2m.DATA_DOUBLE_ARRAY:
+      case m2mDirect.DATA_DOUBLE_ARRAY:
         retrieveDoubleArray();
       break;
-      case m2m.DATA_CHAR:
+      case m2mDirect.DATA_CHAR:
         retrieveChar();
       break;
-      case m2m.DATA_CHAR_ARRAY:
+      case m2mDirect.DATA_CHAR_ARRAY:
         retrieveCharArray();
       break;
-      case m2m.DATA_STR:
+      case m2mDirect.DATA_STR:
         retrieveStr();
       break;
-      case m2m.DATA_CUSTOM:
-        m2m.skipReceivedData(); //Skips the next field
+      case m2mDirect.DATA_CUSTOM:
+        m2mDirect.skipReceivedData(); //Skips the next field
         Serial.print(F("\n\r\tCustom: skipped"));
-        m2m.clearReceivedMessage();  //Clear the received message to wait for the next message
+        m2mDirect.clearReceivedMessage();  //Clear the received message to wait for the next message
       break;
       default:
         Serial.print(F("\n\r\tUnable to retrieve received data, unknown type in message"));
-        m2m.clearReceivedMessage();  //Clear the received message to wait for the next message
+        m2mDirect.clearReceivedMessage();  //Clear the received message to wait for the next message
       break;
     }
   }
@@ -186,29 +186,29 @@ void setup()
 {
   Serial.begin(115200); //Start the serial interface for debug
   delay(500); //Give some time for the Serial Monitor to come online
-  //m2m.debug(Serial);  //Tell the library to use Serial for debug output
-  m2m.pairingButtonGpio(0); //Enable the pairing button on GPIO 0
+  //m2mDirect.debug(Serial);  //Tell the library to use Serial for debug output
+  m2mDirect.pairingButtonGpio(0); //Enable the pairing button on GPIO 0
   #ifdef LED_BUILTIN
-  m2m.indicatorGpio(LED_BUILTIN);  //Enable the indicator LED
+  m2mDirect.indicatorGpio(LED_BUILTIN);  //Enable the indicator LED
   #endif
-  m2m.localName(name);  //Set the name of the device
-  m2m.setPairingCallback(onPairStart);  //Set the 'pairing' callback created above
-  m2m.setPairedCallback(onPaired);  //Set the 'paired' callback created above
-  m2m.setConnectedCallback(onConnected);  //Set the 'connected' callback created above
-  m2m.setDisconnectedCallback(onDisconnected);  //Set the 'disconnected' callback created above
-  m2m.setMessageReceivedCallback(onMessageReceived);  //Set the 'message received' callback created above
-  m2m.setAutomaticTxPower(true); //Enable automatic adjustment of transmit power (default, use false to disable this)
-  m2m.begin(1);  //Start the M2M connection
+  m2mDirect.localName(name);  //Set the name of the device
+  m2mDirect.setPairingCallback(onPairStart);  //Set the 'pairing' callback created above
+  m2mDirect.setPairedCallback(onPaired);  //Set the 'paired' callback created above
+  m2mDirect.setConnectedCallback(onConnected);  //Set the 'connected' callback created above
+  m2mDirect.setDisconnectedCallback(onDisconnected);  //Set the 'disconnected' callback created above
+  m2mDirect.setMessageReceivedCallback(onMessageReceived);  //Set the 'message received' callback created above
+  m2mDirect.setAutomaticTxPower(true); //Enable automatic adjustment of transmit power (default, use false to disable this)
+  m2mDirect.begin(1);  //Start the M2M connection
 }
 
 void loop()
 {
-  m2m.housekeeping(); //Maintain the M2M connection
+  m2mDirect.housekeeping(); //Maintain the M2M connection
 }
 void retrieveBool()
 {
   bool receivedData = false;
-  if(m2m.retrieve(&receivedData)) //You must pass by reference the variable to retrieve the data into
+  if(m2mDirect.retrieve(&receivedData)) //You must pass by reference the variable to retrieve the data into
   {
     Serial.print(F("\n\r\tbool: "));
     if(receivedData)
@@ -223,14 +223,14 @@ void retrieveBool()
   else
   {
     Serial.print(F("\n\r\tunable to retrieve received bool data"));
-    m2m.clearReceivedMessage();  //Clear the received message to wait for the next message
+    m2mDirect.clearReceivedMessage();  //Clear the received message to wait for the next message
   }
 }
 void retrieveBoolArray()
 {
-  uint8_t arrayLength = m2m.nextDataLength();
+  uint8_t arrayLength = m2mDirect.nextDataLength();
   bool receivedData[arrayLength];
-  if(m2m.retrieve(receivedData, arrayLength)) //You must pass by reference the variable to retrieve the data into and for arrays supply the length
+  if(m2mDirect.retrieve(receivedData, arrayLength)) //You must pass by reference the variable to retrieve the data into and for arrays supply the length
   {
     Serial.print(F("\n\r\tbool["));
     Serial.print(arrayLength);
@@ -244,13 +244,13 @@ void retrieveBoolArray()
   else
   {
     Serial.print(F("\n\r\tunable to retrieve received bool array data"));
-    m2m.clearReceivedMessage();  //Clear the received message to wait for the next message
+    m2mDirect.clearReceivedMessage();  //Clear the received message to wait for the next message
   }
 }
 void retrieveUint8_t()
 {
   uint8_t receivedData = 0;
-  if(m2m.retrieve(&receivedData)) //You must pass by reference the variable to retrieve the data into
+  if(m2mDirect.retrieve(&receivedData)) //You must pass by reference the variable to retrieve the data into
   {
     Serial.print(F("\n\r\tuint8_t: "));
     Serial.print(receivedData);
@@ -258,14 +258,14 @@ void retrieveUint8_t()
   else
   {
     Serial.print(F("\n\r\tunable to retrieve received uint8_t data"));
-    m2m.clearReceivedMessage();  //Clear the received message to wait for the next message
+    m2mDirect.clearReceivedMessage();  //Clear the received message to wait for the next message
   }
 }
 void retrieveUint8_tArray()
 {
-  uint8_t arrayLength = m2m.nextDataLength();
+  uint8_t arrayLength = m2mDirect.nextDataLength();
   uint8_t receivedData[arrayLength];
-  if(m2m.retrieve(receivedData, arrayLength)) //You must pass by reference the variable to retrieve the data into and for arrays supply the length
+  if(m2mDirect.retrieve(receivedData, arrayLength)) //You must pass by reference the variable to retrieve the data into and for arrays supply the length
   {
     Serial.print(F("\n\r\tuint8_t["));
     Serial.print(arrayLength);
@@ -279,13 +279,13 @@ void retrieveUint8_tArray()
   else
   {
     Serial.print(F("\n\r\tunable to retrieve received uint8_t array data"));
-    m2m.clearReceivedMessage();  //Clear the received message to wait for the next message
+    m2mDirect.clearReceivedMessage();  //Clear the received message to wait for the next message
   }
 }
 void retrieveUint16_t()
 {
   uint16_t receivedData = 0;
-  if(m2m.retrieve(&receivedData)) //You must pass by reference the variable to retrieve the data into
+  if(m2mDirect.retrieve(&receivedData)) //You must pass by reference the variable to retrieve the data into
   {
     Serial.print(F("\n\r\tuint16_t: "));
     Serial.print(receivedData);
@@ -293,14 +293,14 @@ void retrieveUint16_t()
   else
   {
     Serial.print(F("\n\r\tunable to retrieve received uint16_t data"));
-    m2m.clearReceivedMessage();  //Clear the received message to wait for the next message
+    m2mDirect.clearReceivedMessage();  //Clear the received message to wait for the next message
   }
 }
 void retrieveUint16_tArray()
 {
-  uint8_t arrayLength = m2m.nextDataLength();
+  uint8_t arrayLength = m2mDirect.nextDataLength();
   uint16_t receivedData[arrayLength];
-  if(m2m.retrieve(receivedData, arrayLength)) //You must pass by reference the variable to retrieve the data into and for arrays supply the length
+  if(m2mDirect.retrieve(receivedData, arrayLength)) //You must pass by reference the variable to retrieve the data into and for arrays supply the length
   {
     Serial.print(F("\n\r\tuint16_t["));
     Serial.print(arrayLength);
@@ -314,13 +314,13 @@ void retrieveUint16_tArray()
   else
   {
     Serial.print(F("\n\r\tunable to retrieve received uint16_t array data"));
-    m2m.clearReceivedMessage();  //Clear the received message to wait for the next message
+    m2mDirect.clearReceivedMessage();  //Clear the received message to wait for the next message
   }
 }
 void retrieveUint32_t()
 {
   uint32_t receivedData = 0;
-  if(m2m.retrieve(&receivedData)) //You must pass by reference the variable to retrieve the data into
+  if(m2mDirect.retrieve(&receivedData)) //You must pass by reference the variable to retrieve the data into
   {
     Serial.print(F("\n\r\tuint32_t: "));
     Serial.print(receivedData);
@@ -328,14 +328,14 @@ void retrieveUint32_t()
   else
   {
     Serial.print(F("\n\r\tunable to retrieve received uint32_t data"));
-    m2m.clearReceivedMessage();  //Clear the received message to wait for the next message
+    m2mDirect.clearReceivedMessage();  //Clear the received message to wait for the next message
   }
 }
 void retrieveUint32_tArray()
 {
-  uint8_t arrayLength = m2m.nextDataLength();
+  uint8_t arrayLength = m2mDirect.nextDataLength();
   uint32_t receivedData[arrayLength];
-  if(m2m.retrieve(receivedData, arrayLength)) //You must pass by reference the variable to retrieve the data into and for arrays supply the length
+  if(m2mDirect.retrieve(receivedData, arrayLength)) //You must pass by reference the variable to retrieve the data into and for arrays supply the length
   {
     Serial.print(F("\n\r\tuint32_t["));
     Serial.print(arrayLength);
@@ -349,13 +349,13 @@ void retrieveUint32_tArray()
   else
   {
     Serial.print(F("\n\r\tunable to retrieve received uint32_t array data"));
-    m2m.clearReceivedMessage();  //Clear the received message to wait for the next message
+    m2mDirect.clearReceivedMessage();  //Clear the received message to wait for the next message
   }
 }
 void retrieveUint64_t()
 {
   uint64_t receivedData = 0;
-  if(m2m.retrieve(&receivedData)) //You must pass by reference the variable to retrieve the data into
+  if(m2mDirect.retrieve(&receivedData)) //You must pass by reference the variable to retrieve the data into
   {
     Serial.print(F("\n\r\tuint64_t: "));
     Serial.print(receivedData);
@@ -363,14 +363,14 @@ void retrieveUint64_t()
   else
   {
     Serial.print(F("\n\r\tunable to retrieve received uint64_t data"));
-    m2m.clearReceivedMessage();  //Clear the received message to wait for the next message
+    m2mDirect.clearReceivedMessage();  //Clear the received message to wait for the next message
   }
 }
 void retrieveUint64_tArray()
 {
-  uint8_t arrayLength = m2m.nextDataLength();
+  uint8_t arrayLength = m2mDirect.nextDataLength();
   uint64_t receivedData[arrayLength];
-  if(m2m.retrieve(receivedData, arrayLength)) //You must pass by reference the variable to retrieve the data into and for arrays supply the length
+  if(m2mDirect.retrieve(receivedData, arrayLength)) //You must pass by reference the variable to retrieve the data into and for arrays supply the length
   {
     Serial.print(F("\n\r\tuint64_t["));
     Serial.print(arrayLength);
@@ -384,13 +384,13 @@ void retrieveUint64_tArray()
   else
   {
     Serial.print(F("\n\r\tunable to retrieve received uint64_t array data"));
-    m2m.clearReceivedMessage();  //Clear the received message to wait for the next message
+    m2mDirect.clearReceivedMessage();  //Clear the received message to wait for the next message
   }
 }
 void retrieveInt8_t()
 {
   int8_t receivedData = 0;
-  if(m2m.retrieve(&receivedData)) //You must pass by reference the variable to retrieve the data into
+  if(m2mDirect.retrieve(&receivedData)) //You must pass by reference the variable to retrieve the data into
   {
     Serial.print(F("\n\r\tint8_t: "));
     Serial.print(receivedData);
@@ -398,14 +398,14 @@ void retrieveInt8_t()
   else
   {
     Serial.print(F("\n\r\tunable to retrieve received int8_t data"));
-    m2m.clearReceivedMessage();  //Clear the received message to wait for the next message
+    m2mDirect.clearReceivedMessage();  //Clear the received message to wait for the next message
   }
 }
 void retrieveInt8_tArray()
 {
-  uint8_t arrayLength = m2m.nextDataLength();
+  uint8_t arrayLength = m2mDirect.nextDataLength();
   int8_t receivedData[arrayLength];
-  if(m2m.retrieve(receivedData, arrayLength)) //You must pass by reference the variable to retrieve the data into and for arrays supply the length
+  if(m2mDirect.retrieve(receivedData, arrayLength)) //You must pass by reference the variable to retrieve the data into and for arrays supply the length
   {
     Serial.print(F("\n\r\tint8_t["));
     Serial.print(arrayLength);
@@ -419,13 +419,13 @@ void retrieveInt8_tArray()
   else
   {
     Serial.print(F("\n\r\tunable to retrieve received int8_t array data"));
-    m2m.clearReceivedMessage();  //Clear the received message to wait for the next message
+    m2mDirect.clearReceivedMessage();  //Clear the received message to wait for the next message
   }
 }
 void retrieveInt16_t()
 {
   int16_t receivedData = 0;
-  if(m2m.retrieve(&receivedData)) //You must pass by reference the variable to retrieve the data into
+  if(m2mDirect.retrieve(&receivedData)) //You must pass by reference the variable to retrieve the data into
   {
     Serial.print(F("\n\r\tint16_t: "));
     Serial.print(receivedData);
@@ -433,14 +433,14 @@ void retrieveInt16_t()
   else
   {
     Serial.print(F("\n\r\tunable to retrieve received int16_t data"));
-    m2m.clearReceivedMessage();  //Clear the received message to wait for the next message
+    m2mDirect.clearReceivedMessage();  //Clear the received message to wait for the next message
   }
 }
 void retrieveInt16_tArray()
 {
-  uint8_t arrayLength = m2m.nextDataLength();
+  uint8_t arrayLength = m2mDirect.nextDataLength();
   int16_t receivedData[arrayLength];
-  if(m2m.retrieve(receivedData, arrayLength)) //You must pass by reference the variable to retrieve the data into and for arrays supply the length
+  if(m2mDirect.retrieve(receivedData, arrayLength)) //You must pass by reference the variable to retrieve the data into and for arrays supply the length
   {
     Serial.print(F("\n\r\tint16_t["));
     Serial.print(arrayLength);
@@ -454,13 +454,13 @@ void retrieveInt16_tArray()
   else
   {
     Serial.print(F("\n\r\tunable to retrieve received int16_t array data"));
-    m2m.clearReceivedMessage();  //Clear the received message to wait for the next message
+    m2mDirect.clearReceivedMessage();  //Clear the received message to wait for the next message
   }
 }
 void retrieveInt32_t()
 {
   int32_t receivedData = 0;
-  if(m2m.retrieve(&receivedData)) //You must pass by reference the variable to retrieve the data into
+  if(m2mDirect.retrieve(&receivedData)) //You must pass by reference the variable to retrieve the data into
   {
     Serial.print(F("\n\r\tint32_t: "));
     Serial.print(receivedData);
@@ -468,14 +468,14 @@ void retrieveInt32_t()
   else
   {
     Serial.print(F("\n\r\tunable to retrieve received int32_t data"));
-    m2m.clearReceivedMessage();  //Clear the received message to wait for the next message
+    m2mDirect.clearReceivedMessage();  //Clear the received message to wait for the next message
   }
 }
 void retrieveInt32_tArray()
 {
-  uint8_t arrayLength = m2m.nextDataLength();
+  uint8_t arrayLength = m2mDirect.nextDataLength();
   int32_t receivedData[arrayLength];
-  if(m2m.retrieve(receivedData, arrayLength)) //You must pass by reference the variable to retrieve the data into and for arrays supply the length
+  if(m2mDirect.retrieve(receivedData, arrayLength)) //You must pass by reference the variable to retrieve the data into and for arrays supply the length
   {
     Serial.print(F("\n\r\tint32_t["));
     Serial.print(arrayLength);
@@ -489,13 +489,13 @@ void retrieveInt32_tArray()
   else
   {
     Serial.print(F("\n\r\tunable to retrieve received int32_t array data"));
-    m2m.clearReceivedMessage();  //Clear the received message to wait for the next message
+    m2mDirect.clearReceivedMessage();  //Clear the received message to wait for the next message
   }
 }
 void retrieveInt64_t()
 {
   int64_t receivedData = 0;
-  if(m2m.retrieve(&receivedData)) //You must pass by reference the variable to retrieve the data into
+  if(m2mDirect.retrieve(&receivedData)) //You must pass by reference the variable to retrieve the data into
   {
     Serial.print(F("\n\r\tint64_t: "));
     Serial.print(receivedData);
@@ -503,14 +503,14 @@ void retrieveInt64_t()
   else
   {
     Serial.print(F("\n\r\tunable to retrieve received int64_t data"));
-    m2m.clearReceivedMessage();  //Clear the received message to wait for the next message
+    m2mDirect.clearReceivedMessage();  //Clear the received message to wait for the next message
   }
 }
 void retrieveInt64_tArray()
 {
-  uint8_t arrayLength = m2m.nextDataLength();
+  uint8_t arrayLength = m2mDirect.nextDataLength();
   int64_t receivedData[arrayLength];
-  if(m2m.retrieve(receivedData, arrayLength)) //You must pass by reference the variable to retrieve the data into and for arrays supply the length
+  if(m2mDirect.retrieve(receivedData, arrayLength)) //You must pass by reference the variable to retrieve the data into and for arrays supply the length
   {
     Serial.print(F("\n\r\tint64_t["));
     Serial.print(arrayLength);
@@ -524,13 +524,13 @@ void retrieveInt64_tArray()
   else
   {
     Serial.print(F("\n\r\tunable to retrieve received int64_t array data"));
-    m2m.clearReceivedMessage();  //Clear the received message to wait for the next message
+    m2mDirect.clearReceivedMessage();  //Clear the received message to wait for the next message
   }
 }
 void retrieveFloat()
 {
   float receivedData = 0.0;
-  if(m2m.retrieve(&receivedData)) //You must pass by reference the variable to retrieve the data into
+  if(m2mDirect.retrieve(&receivedData)) //You must pass by reference the variable to retrieve the data into
   {
     Serial.print(F("\n\r\tfloat: "));
     Serial.print(receivedData);
@@ -538,14 +538,14 @@ void retrieveFloat()
   else
   {
     Serial.print(F("\n\r\tunable to retrieve received float data"));
-    m2m.clearReceivedMessage();  //Clear the received message to wait for the next message
+    m2mDirect.clearReceivedMessage();  //Clear the received message to wait for the next message
   }
 }
 void retrieveFloatArray()
 {
-  uint8_t arrayLength = m2m.nextDataLength();
+  uint8_t arrayLength = m2mDirect.nextDataLength();
   float receivedData[arrayLength];
-  if(m2m.retrieve(receivedData, arrayLength)) //You must pass by reference the variable to retrieve the data into and for arrays supply the length
+  if(m2mDirect.retrieve(receivedData, arrayLength)) //You must pass by reference the variable to retrieve the data into and for arrays supply the length
   {
     Serial.print(F("\n\r\tfloat["));
     Serial.print(arrayLength);
@@ -559,13 +559,13 @@ void retrieveFloatArray()
   else
   {
     Serial.print(F("\n\r\tunable to retrieve received float array data"));
-    m2m.clearReceivedMessage();  //Clear the received message to wait for the next message
+    m2mDirect.clearReceivedMessage();  //Clear the received message to wait for the next message
   }
 }
 void retrieveDouble()
 {
   double receivedData = 0;
-  if(m2m.retrieve(&receivedData)) //You must pass by reference the variable to retrieve the data into
+  if(m2mDirect.retrieve(&receivedData)) //You must pass by reference the variable to retrieve the data into
   {
     Serial.print(F("\n\r\tdouble: "));
     Serial.print(receivedData);
@@ -573,14 +573,14 @@ void retrieveDouble()
   else
   {
     Serial.print(F("\n\r\tunable to retrieve received double data"));
-    m2m.clearReceivedMessage();  //Clear the received message to wait for the next message
+    m2mDirect.clearReceivedMessage();  //Clear the received message to wait for the next message
   }
 }
 void retrieveDoubleArray()
 {
-  uint8_t arrayLength = m2m.nextDataLength();
+  uint8_t arrayLength = m2mDirect.nextDataLength();
   double receivedData[arrayLength];
-  if(m2m.retrieve(receivedData, arrayLength)) //You must pass by reference the variable to retrieve the data into and for arrays supply the length
+  if(m2mDirect.retrieve(receivedData, arrayLength)) //You must pass by reference the variable to retrieve the data into and for arrays supply the length
   {
     Serial.print(F("\n\r\tdouble["));
     Serial.print(arrayLength);
@@ -594,13 +594,13 @@ void retrieveDoubleArray()
   else
   {
     Serial.print(F("\n\r\tunable to retrieve received double array data"));
-    m2m.clearReceivedMessage();  //Clear the received message to wait for the next message
+    m2mDirect.clearReceivedMessage();  //Clear the received message to wait for the next message
   }
 }
 void retrieveChar()
 {
   char receivedData = 0;
-  if(m2m.retrieve(&receivedData)) //You must pass by reference the variable to retrieve the data into
+  if(m2mDirect.retrieve(&receivedData)) //You must pass by reference the variable to retrieve the data into
   {
     Serial.print(F("\n\r\tchar: '"));
     Serial.print(receivedData);
@@ -609,14 +609,14 @@ void retrieveChar()
   else
   {
     Serial.print(F("\n\r\tunable to retrieve received char data"));
-    m2m.clearReceivedMessage();  //Clear the received message to wait for the next message
+    m2mDirect.clearReceivedMessage();  //Clear the received message to wait for the next message
   }
 }
 void retrieveCharArray()
 {
-  uint8_t arrayLength = m2m.nextDataLength();
+  uint8_t arrayLength = m2mDirect.nextDataLength();
   char receivedData[arrayLength];
-  if(m2m.retrieve(receivedData, arrayLength)) //You must pass by reference the variable to retrieve the data into and for arrays supply the length
+  if(m2mDirect.retrieve(receivedData, arrayLength)) //You must pass by reference the variable to retrieve the data into and for arrays supply the length
   {
     Serial.print(F("\n\r\tchar["));
     Serial.print(arrayLength);
@@ -631,14 +631,14 @@ void retrieveCharArray()
   else
   {
     Serial.print(F("\n\r\tunable to retrieve received char array data"));
-    m2m.clearReceivedMessage();  //Clear the received message to wait for the next message
+    m2mDirect.clearReceivedMessage();  //Clear the received message to wait for the next message
   }
 }
 void retrieveStr()
 {
-  uint8_t length = m2m.nextDataLength();
+  uint8_t length = m2mDirect.nextDataLength();
   char receivedData[length + 1];
-  if(m2m.retrieveStr(receivedData)) //You must pass by reference the variable to retrieve the data into, unless it is an 'array' like a C string
+  if(m2mDirect.retrieveStr(receivedData)) //You must pass by reference the variable to retrieve the data into, unless it is an 'array' like a C string
   {
     Serial.print(F("\n\r\tNull terminated char["));
     Serial.print(length + 1);
@@ -649,6 +649,6 @@ void retrieveStr()
   else
   {
     Serial.print(F("\n\r\tunable to retrieve received char array data"));
-    m2m.clearReceivedMessage();  //Clear the received message to wait for the next message
+    m2mDirect.clearReceivedMessage();  //Clear the received message to wait for the next message
   }
 }
