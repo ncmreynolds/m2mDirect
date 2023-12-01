@@ -230,7 +230,7 @@ void retrieveBoolArray()
 {
   uint8_t arrayLength = m2m.nextDataLength();
   bool receivedData[arrayLength];
-  if(m2m.retrieve(&receivedData[0], arrayLength)) //You must pass by reference the variable to retrieve the data into and for arrays supply the length
+  if(m2m.retrieve(receivedData, arrayLength)) //You must pass by reference the variable to retrieve the data into and for arrays supply the length
   {
     Serial.print(F("\n\r\tbool["));
     Serial.print(arrayLength);
@@ -265,7 +265,7 @@ void retrieveUint8_tArray()
 {
   uint8_t arrayLength = m2m.nextDataLength();
   uint8_t receivedData[arrayLength];
-  if(m2m.retrieve(&receivedData[0], arrayLength)) //You must pass by reference the variable to retrieve the data into and for arrays supply the length
+  if(m2m.retrieve(receivedData, arrayLength)) //You must pass by reference the variable to retrieve the data into and for arrays supply the length
   {
     Serial.print(F("\n\r\tuint8_t["));
     Serial.print(arrayLength);
@@ -300,7 +300,7 @@ void retrieveUint16_tArray()
 {
   uint8_t arrayLength = m2m.nextDataLength();
   uint16_t receivedData[arrayLength];
-  if(m2m.retrieve(&receivedData[0], arrayLength)) //You must pass by reference the variable to retrieve the data into and for arrays supply the length
+  if(m2m.retrieve(receivedData, arrayLength)) //You must pass by reference the variable to retrieve the data into and for arrays supply the length
   {
     Serial.print(F("\n\r\tuint16_t["));
     Serial.print(arrayLength);
@@ -335,7 +335,7 @@ void retrieveUint32_tArray()
 {
   uint8_t arrayLength = m2m.nextDataLength();
   uint32_t receivedData[arrayLength];
-  if(m2m.retrieve(&receivedData[0], arrayLength)) //You must pass by reference the variable to retrieve the data into and for arrays supply the length
+  if(m2m.retrieve(receivedData, arrayLength)) //You must pass by reference the variable to retrieve the data into and for arrays supply the length
   {
     Serial.print(F("\n\r\tuint32_t["));
     Serial.print(arrayLength);
@@ -370,7 +370,7 @@ void retrieveUint64_tArray()
 {
   uint8_t arrayLength = m2m.nextDataLength();
   uint64_t receivedData[arrayLength];
-  if(m2m.retrieve(&receivedData[0], arrayLength)) //You must pass by reference the variable to retrieve the data into and for arrays supply the length
+  if(m2m.retrieve(receivedData, arrayLength)) //You must pass by reference the variable to retrieve the data into and for arrays supply the length
   {
     Serial.print(F("\n\r\tuint64_t["));
     Serial.print(arrayLength);
@@ -405,7 +405,7 @@ void retrieveInt8_tArray()
 {
   uint8_t arrayLength = m2m.nextDataLength();
   int8_t receivedData[arrayLength];
-  if(m2m.retrieve(&receivedData[0], arrayLength)) //You must pass by reference the variable to retrieve the data into and for arrays supply the length
+  if(m2m.retrieve(receivedData, arrayLength)) //You must pass by reference the variable to retrieve the data into and for arrays supply the length
   {
     Serial.print(F("\n\r\tint8_t["));
     Serial.print(arrayLength);
@@ -440,7 +440,7 @@ void retrieveInt16_tArray()
 {
   uint8_t arrayLength = m2m.nextDataLength();
   int16_t receivedData[arrayLength];
-  if(m2m.retrieve(&receivedData[0], arrayLength)) //You must pass by reference the variable to retrieve the data into and for arrays supply the length
+  if(m2m.retrieve(receivedData, arrayLength)) //You must pass by reference the variable to retrieve the data into and for arrays supply the length
   {
     Serial.print(F("\n\r\tint16_t["));
     Serial.print(arrayLength);
@@ -475,7 +475,7 @@ void retrieveInt32_tArray()
 {
   uint8_t arrayLength = m2m.nextDataLength();
   int32_t receivedData[arrayLength];
-  if(m2m.retrieve(&receivedData[0], arrayLength)) //You must pass by reference the variable to retrieve the data into and for arrays supply the length
+  if(m2m.retrieve(receivedData, arrayLength)) //You must pass by reference the variable to retrieve the data into and for arrays supply the length
   {
     Serial.print(F("\n\r\tint32_t["));
     Serial.print(arrayLength);
@@ -510,7 +510,7 @@ void retrieveInt64_tArray()
 {
   uint8_t arrayLength = m2m.nextDataLength();
   int64_t receivedData[arrayLength];
-  if(m2m.retrieve(&receivedData[0], arrayLength)) //You must pass by reference the variable to retrieve the data into and for arrays supply the length
+  if(m2m.retrieve(receivedData, arrayLength)) //You must pass by reference the variable to retrieve the data into and for arrays supply the length
   {
     Serial.print(F("\n\r\tint64_t["));
     Serial.print(arrayLength);
@@ -545,7 +545,7 @@ void retrieveFloatArray()
 {
   uint8_t arrayLength = m2m.nextDataLength();
   float receivedData[arrayLength];
-  if(m2m.retrieve(&receivedData[0], arrayLength)) //You must pass by reference the variable to retrieve the data into and for arrays supply the length
+  if(m2m.retrieve(receivedData, arrayLength)) //You must pass by reference the variable to retrieve the data into and for arrays supply the length
   {
     Serial.print(F("\n\r\tfloat["));
     Serial.print(arrayLength);
@@ -580,7 +580,7 @@ void retrieveDoubleArray()
 {
   uint8_t arrayLength = m2m.nextDataLength();
   double receivedData[arrayLength];
-  if(m2m.retrieve(&receivedData[0], arrayLength)) //You must pass by reference the variable to retrieve the data into and for arrays supply the length
+  if(m2m.retrieve(receivedData, arrayLength)) //You must pass by reference the variable to retrieve the data into and for arrays supply the length
   {
     Serial.print(F("\n\r\tdouble["));
     Serial.print(arrayLength);
@@ -616,7 +616,7 @@ void retrieveCharArray()
 {
   uint8_t arrayLength = m2m.nextDataLength();
   char receivedData[arrayLength];
-  if(m2m.retrieve(&receivedData[0], arrayLength)) //You must pass by reference the variable to retrieve the data into and for arrays supply the length
+  if(m2m.retrieve(receivedData, arrayLength)) //You must pass by reference the variable to retrieve the data into and for arrays supply the length
   {
     Serial.print(F("\n\r\tchar["));
     Serial.print(arrayLength);
