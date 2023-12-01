@@ -622,8 +622,9 @@ void addRandomChar()
     for(uint8_t index = 0; index < arraySize; index++)
     {
       valuesToSend[index] = randomChar();
+      Serial.print('\'');
       Serial.print(valuesToSend[index]);
-      Serial.print(' ');
+      Serial.print(F("' "));
     }
     if(m2m.add(valuesToSend, arraySize) == false)
     {
