@@ -44,6 +44,7 @@
 #define M2M_DIRECT_PAIRING_ACK_FLAG 1
 #define M2M_DIRECT_KEEPALIVE_FLAG 2
 #define M2M_DIRECT_DATA_FLAG 3
+#define M2M_DIRECT_SMALL_ARRAY_LIMIT 13
 
 #define MAC_ADDRESS_LENGTH 6
 #define ENCRYPTION_KEY_LENGTH 16
@@ -90,7 +91,8 @@ class m2mDirect	{
 		void pairingButtonGpio(uint8_t pin = 255, bool inverted = false);			//Set pin used for pairing button GPIO
 		void indicatorGpio(uint8_t pin = 255, bool inverted = false);				//Set pin used for indicator GPIO
 		void housekeeping();														//Maintain keepalives etc.
-		m2mDirect& setPairedCallback(std::function<void()> function);				//Set the connected callback
+		m2mDirect& setPairingCallback(std::function<void()> function);				//Set the pairing start callback (mostly for information if the pairing button is pushed)
+		m2mDirect& setPairedCallback(std::function<void()> function);				//Set the paired callback
 		m2mDirect& setConnectedCallback(std::function<void()> function);			//Set the connected callback
 		m2mDirect& setDisconnectedCallback(std::function<void()> function);			//Set the disconnected callback
 		m2mDirect& setMessageReceivedCallback(std::function<void()> function);		//Set the message received callback
@@ -98,15 +100,49 @@ class m2mDirect	{
 		uint32_t linkQuality();														//A measure of link quality
 		void debug(Stream &);														//Start debugging on a stream
 
-		template<typename typeToAdd>
-		bool ICACHE_FLASH_ATTR addData(typeToAdd dataToAdd)							//Generic templated addData functions (which must be in the class definition)
+		bool ICACHE_FLASH_ATTR addStr(char* dataToAdd)								//Specific method to add a null terminated C string, which sorts out null termination
 		{
 			uint8_t dataType = determineDataType(dataToAdd);
-			if(dataType == DATA_BOOL)	//Bool is a special case for packing as it only needs on byte
+			uint8_t dataLength = strnlen(dataToAdd, 255);	//Pseudo-safe strlen usage that will most likely simply not fit in the buffer instead of causing an exception
+			if(_applicationBufferPosition + dataLength + 1 < MAXIMUM_MESSAGE_SIZE - M2M_DIRECT_PACKET_OVERHEAD)
 			{
-				if(_applicationBufferPosition + sizeof(dataToAdd) < MAXIMUM_MESSAGE_SIZE - M2M_DIRECT_PACKET_OVERHEAD)	//Most pieces of data has a byte with it showing the type, bool is two types
+				if(debug_uart_ != nullptr)
 				{
-					if(dataToAdd == true)
+					debug_uart_->print(F("\r\nAdding "));
+					_dataTypeDescription(DATA_STR);
+					debug_uart_->printf_P(PSTR(" %u bytes "), dataLength);
+				}
+				_applicationPacketBuffer[_applicationBufferPosition++] = DATA_STR;	//Force this to be a null terminated string
+				_applicationPacketBuffer[_applicationBufferPosition++] = dataLength;
+				memcpy(&_applicationPacketBuffer[_applicationBufferPosition],dataToAdd,dataLength);			//Copy in the data
+				if(debug_uart_ != nullptr)
+				{
+					for(uint8_t index = 0; index < dataLength; index++)
+					{
+						debug_uart_->print(_applicationPacketBuffer[_applicationBufferPosition+index]);
+						debug_uart_->print(' ');
+					}
+				}
+				_applicationBufferPosition+=dataLength;														//Advance the index past the data
+				_applicationPacketBuffer[1] = _applicationPacketBuffer[1] + 1;							//Increment the field counter
+				return true;
+			}
+			return false;	//Not enough space left in the packet
+		}
+		template<typename typeToAdd>
+		bool ICACHE_FLASH_ATTR add(typeToAdd dataToAdd)							//Generic templated add functions
+		{
+			uint8_t dataType = determineDataType(dataToAdd);
+			uint8_t dataLength = sizeof(dataToAdd);
+			if(_applicationBufferPosition + dataLength + 1 < MAXIMUM_MESSAGE_SIZE - M2M_DIRECT_PACKET_OVERHEAD)
+			{
+				if(dataType == DATA_BOOL)	//Bool is a special case for packing as it only needs on byte
+				{
+					if(debug_uart_ != nullptr)
+					{
+						debug_uart_->print(F("\r\nAdding bool"));
+					}
+					if((bool)dataToAdd == true)
 					{
 						_applicationPacketBuffer[_applicationBufferPosition++] = DATA_BOOL_TRUE;	//True
 					}
@@ -119,23 +155,100 @@ class m2mDirect	{
 				}
 				else
 				{
-					return false;	//Not enough space left in the packet
+					if(debug_uart_ != nullptr)
+					{
+						debug_uart_->print(F("\r\nAdding "));
+						_dataTypeDescription(dataType);
+						debug_uart_->printf_P(PSTR(" %u bytes "), dataLength);
+					}
+					_applicationPacketBuffer[_applicationBufferPosition++] = dataType;
+					memcpy(&_applicationPacketBuffer[_applicationBufferPosition],&dataToAdd,dataLength);	//Copy in the data
+					if(debug_uart_ != nullptr)
+					{
+						for(uint8_t index = 0; index < dataLength; index++)
+						{
+							debug_uart_->print(_applicationPacketBuffer[_applicationBufferPosition+index]);
+							debug_uart_->print(' ');
+						}
+					}
+					_applicationBufferPosition+=dataLength;												//Advance the index past the data
+					_applicationPacketBuffer[1] = _applicationPacketBuffer[1] + 1;										//Increment the field counter
+					return true;
 				}
 			}
-			else
+			return false;	//Not enough space left in the packet
+		}
+		template<typename typeToAdd>
+		bool ICACHE_FLASH_ATTR add(typeToAdd dataToAdd, uint8_t length)							//Generic templated add functions
+		{
+			uint8_t dataType = determineDataType(dataToAdd);
+			uint8_t dataLength = determineDataSize(dataToAdd)*length;
+			if(_applicationBufferPosition + dataLength + 1 < MAXIMUM_MESSAGE_SIZE - M2M_DIRECT_PACKET_OVERHEAD)	//Each piece of data has a byte with it showing the type
 			{
-				if(_applicationBufferPosition + sizeof(dataToAdd) + 1 < MAXIMUM_MESSAGE_SIZE - M2M_DIRECT_PACKET_OVERHEAD)	//Each piece of data has a byte with it showing the type
+				if(dataType == DATA_BOOL)	//Bool is a special case for packing as it only needs on byte
 				{
-					_applicationPacketBuffer[_applicationBufferPosition++] = dataType;
-					memcpy(&_applicationPacketBuffer[_applicationBufferPosition],&dataToAdd,sizeof(dataToAdd));			//Copy in the data
-					_applicationBufferPosition+=sizeof(dataToAdd);														//Advance the index past the data
-					_applicationPacketBuffer[1] = _applicationPacketBuffer[1] + 1;										//Increment the field counter
+					if(debug_uart_ != nullptr)
+					{
+						debug_uart_->printf_P(PSTR("\r\nAdding bool[%u] %u bytes "), length, dataLength);
+					}
+					_applicationPacketBuffer[_applicationBufferPosition++] = (dataType | 0x80);
+					_applicationPacketBuffer[_applicationBufferPosition++] = length;
+					for(uint8_t index = 0; index < length; index++)
+					{
+						if((bool)dataToAdd[index] == true)
+						{
+							_applicationPacketBuffer[_applicationBufferPosition++] = DATA_BOOL_TRUE;	//True
+							if(debug_uart_ != nullptr)
+							{
+								debug_uart_->print(_applicationPacketBuffer[_applicationBufferPosition - 1]);
+							}
+						}
+						else
+						{
+							_applicationPacketBuffer[_applicationBufferPosition++] = DATA_BOOL;			//False
+							if(debug_uart_ != nullptr)
+							{
+								debug_uart_->print(_applicationPacketBuffer[_applicationBufferPosition - 1]);
+							}
+						}
+						if(debug_uart_ != nullptr)
+						{
+							debug_uart_->print(' ');
+						}
+					}
+					_applicationPacketBuffer[1] = _applicationPacketBuffer[1] + 1;						//Increment the field counter
 					return true;
 				}
 				else
 				{
-					return false;	//Not enough space left in the packet
+					if(debug_uart_ != nullptr)
+					{
+						debug_uart_->print(F("\r\nAdding "));
+						_dataTypeDescription(dataType);
+					}
+					if(debug_uart_ != nullptr)
+					{
+						debug_uart_->printf_P(PSTR("[%u] %u bytes "), length, dataLength);
+					}
+					_applicationPacketBuffer[_applicationBufferPosition++] = (dataType | 0x80);
+					_applicationPacketBuffer[_applicationBufferPosition++] = length;
+					memcpy(&_applicationPacketBuffer[_applicationBufferPosition],dataToAdd,dataLength);	//Copy in the data
+					if(debug_uart_ != nullptr)
+					{
+						for(uint8_t index = 0; index < dataLength; index++)
+						{
+							debug_uart_->print(_applicationPacketBuffer[_applicationBufferPosition+index]);
+							debug_uart_->print(' ');
+						}
+					}
+					_applicationBufferPosition+=dataLength;												//Advance the index past the data
+					_applicationPacketBuffer[1] = _applicationPacketBuffer[1] + 1;										//Increment the field counter
+					return true;
 				}
+			}
+			else
+			{
+				return false;	//Not enough space left in the packet
 			}
 		}
 		//Consider making a variadic function for adding multiple items of heterogenous types in one go https://en.cppreference.com/w/cpp/utility/variadic
@@ -155,9 +268,24 @@ class m2mDirect	{
 		static const uint8_t DATA_DOUBLE =         0x0b;			//Used to denote a double float (64-bit) in user data
 		static const uint8_t DATA_CHAR =           0x0c;			//Used to denote a char in user data
 		static const uint8_t DATA_STR =            0x0d;			//Used to denote a null terminated C string in user data
-		static const uint8_t DATA_STRING =         0x0e;			//Used to denote a String in user data
-		template<typename typeToRetrieve>
-		bool ICACHE_FLASH_ATTR retrieveReceivedData(typeToRetrieve *dataDestination)									//Generic templated retrieveData functions (which must be in the class definition)
+		static const uint8_t DATA_KEY =            0x0e;			//Used to denote a key, which is a null terminated C string in user data
+		static const uint8_t DATA_CUSTOM =         0x0f;			//Used to denote a custom type in user data
+		static const uint8_t DATA_BOOL_ARRAY =     0x80;			//Used to denote boolean array in user data
+		static const uint8_t DATA_UINT8_T_ARRAY =  0x82;			//Used to denote an uint8_t array in user data
+		static const uint8_t DATA_UINT16_T_ARRAY = 0x83;			//Used to denote an uint16_t array in user data
+		static const uint8_t DATA_UINT32_T_ARRAY = 0x84;			//Used to denote an uint32_t array in user data
+		static const uint8_t DATA_UINT64_T_ARRAY = 0x85;			//Used to denote an uint64_t array in user data
+		static const uint8_t DATA_INT8_T_ARRAY =   0x86;			//Used to denote an int8_t array in user data
+		static const uint8_t DATA_INT16_T_ARRAY =  0x87;			//Used to denote an int16_t array in user data
+		static const uint8_t DATA_INT32_T_ARRAY =  0x88;			//Used to denote an int32_t array in user data
+		static const uint8_t DATA_INT64_T_ARRAY =  0x89;			//Used to denote an int64_t array in user data
+		static const uint8_t DATA_FLOAT_ARRAY =    0x8a;			//Used to denote a float (32-bit) array in user data
+		static const uint8_t DATA_DOUBLE_ARRAY =   0x8b;			//Used to denote a double float (64-bit) array in user data
+		static const uint8_t DATA_CHAR_ARRAY =     0x8c;			//Used to denote a char array in user data (not a null terminated C string!)
+		static const uint8_t DATA_CUSTOM_ARRAY =   0x8f;			//Used to denote a custom type array in user data
+		
+		
+		bool ICACHE_FLASH_ATTR retrieveStr(char* dataDestination)	//Specific method to retrieve a null terminated C string, which sorts out null termination
 		{
 			if(_receivedPacketBuffer[1] == 0)
 			{
@@ -170,8 +298,59 @@ class m2mDirect	{
 			else
 			{
 				uint8_t dataType = determineDataType(*dataDestination);
-				//if(dataType == DATA_BOOL && (DATA_BOOL == _receivedPacketBuffer[_receivedPacketBufferPosition] || DATA_BOOL_TRUE == _receivedPacketBuffer[_receivedPacketBufferPosition]))
-				if(dataType == DATA_BOOL)// && (DATA_BOOL == _receivedPacketBuffer[_receivedPacketBufferPosition] || DATA_BOOL_TRUE == _receivedPacketBuffer[_receivedPacketBufferPosition]))
+				if((dataType & 0x0f) == DATA_CHAR || (dataType & 0x0f) == DATA_STR)
+				{
+					_receivedPacketBuffer[1]--;	//Mark the field as retrieved
+					_receivedPacketBufferPosition++;	//Skip over the type marker for the field
+					uint8_t dataLength = _receivedPacketBuffer[_receivedPacketBufferPosition++];	//Get the length of the char* and move past the length field
+					if(dataLength > 0)
+					{
+						memcpy(dataDestination,&_receivedPacketBuffer[_receivedPacketBufferPosition],dataLength);	//Copy the data
+					}
+					dataDestination[dataLength]=char(0);	//Null terminate the char*
+					if(_receivedPacketBuffer[1] == 0)
+					{
+						_receivedPacketBufferPosition = 2;		//Reset the buffer position for the next message
+					}
+					else
+					{
+						_receivedPacketBufferPosition+=dataLength;	//Move to the next field
+					}
+					return true;
+				}
+				else
+				{
+					if(debug_uart_ != nullptr)
+					{
+						debug_uart_->print(F("\nWrong data type for retrieval, asked for "));
+						_dataTypeDescription(dataType);
+						debug_uart_->print(F(" packet has "));
+						_dataTypeDescription(_receivedPacketBuffer[_receivedPacketBufferPosition]);
+
+					}
+					return false;
+				}
+			}
+		}
+		template<typename typeToRetrieve>
+		bool ICACHE_FLASH_ATTR retrieve(typeToRetrieve *dataDestination, uint8_t length = 1)			//Generic templated retrieve functions
+		{
+			if(_receivedPacketBuffer[1] == 0)
+			{
+				if(debug_uart_ != nullptr)
+				{
+					debug_uart_->print(F("\nNo data left to retrieve"));
+				}
+				return false;
+			}
+			else
+			{
+				uint8_t dataType = determineDataType(*dataDestination);
+				if(length > 1)	//Force it to be an array
+				{
+					dataType = dataType | 0x80;
+				}
+				if(dataType == DATA_BOOL)
 				{
 					if(_receivedPacketBuffer[_receivedPacketBufferPosition] == DATA_BOOL_TRUE)
 					{
@@ -192,11 +371,44 @@ class m2mDirect	{
 					}
 					return true;
 				}
-				else if(dataType == _receivedPacketBuffer[_receivedPacketBufferPosition])
+				else if(dataType == (_receivedPacketBuffer[_receivedPacketBufferPosition] & 0x8f))	//Strip off any array length
 				{
-					_receivedPacketBuffer[1]--;	//Mark the field as retrieved
-					_receivedPacketBufferPosition++;	//Skip over the type marker for the field
-					uint8_t dataLength = sizeof(typeToRetrieve);	//How long is this?
+					uint8_t dataLength = 0;
+					if(debug_uart_ != nullptr)
+					{
+						debug_uart_->print(F("\r\nRetrieving "));
+						_dataTypeDescription(dataType);
+					}
+					if((_receivedPacketBuffer[_receivedPacketBufferPosition] & 0xf0) == 0 && length == 1) //It's not an array
+					{
+						_receivedPacketBuffer[1]--;	//Mark the field as retrieved
+						_receivedPacketBufferPosition++;	//Skip over the type marker for the field
+						dataLength = sizeof(typeToRetrieve);	//How long is this?
+					}
+					else if(_receivedPacketBuffer[_receivedPacketBufferPosition+1] == length)	//It's an array and the application is expecting the right length
+					{
+						_receivedPacketBuffer[1]--;	//Mark the field as retrieved
+						_receivedPacketBufferPosition++;	//Skip over the type marker for the field
+						dataLength = sizeof(typeToRetrieve) * _receivedPacketBuffer[_receivedPacketBufferPosition];	//How long is this?
+						_receivedPacketBufferPosition++;	//Skip over the length marker for the field
+						if(debug_uart_ != nullptr)
+						{
+							debug_uart_->print('[');
+							debug_uart_->print(length);
+							debug_uart_->print(']');
+							debug_uart_->print(' ');
+							debug_uart_->print(dataLength);
+							debug_uart_->print(F(" bytes"));
+						}
+					}
+					else
+					{
+						if(debug_uart_ != nullptr)
+						{
+							debug_uart_->print(F(" failed"));
+						}
+						return false; //Do nothing and fail
+					}
 					memcpy(dataDestination,&_receivedPacketBuffer[_receivedPacketBufferPosition],dataLength);	//Copy the data
 					if(_receivedPacketBuffer[1] == 0)
 					{
@@ -224,6 +436,8 @@ class m2mDirect	{
 		}
 		uint8_t dataAvailable();													//Number of fields left in the message
 		uint8_t nextDataType();														//Return the 'type' of the next piece of data
+		uint8_t nextDataLength();													//Return the 'length' of the next piece of data, for C strings, Strings etc.
+		void skipReceivedData();													//Skips a data field
 		void clearReceivedMessage();												//Clear any received message, even if not all read
 		bool resetPairing();														//Reset pairing info and reset state to re-pair
 	protected:
@@ -260,7 +474,7 @@ class m2mDirect	{
 		//uint32_t _lastTimestamp = 0;												//Last timestamp in a sent packet
 		uint32_t _startingKeepaliveInterval = 250;									//Starting keepalive time for a paired connection
 		uint32_t _minimumKeepaliveInterval = 50;									//Minimum keepalive time for a paired connection
-		uint32_t _maximumKeepaliveInterval = 10000;									//Maximum keepalive time for a paired connection
+		uint32_t _maximumKeepaliveInterval = 100000000;									//Maximum keepalive time for a paired connection
 		uint32_t _keepaliveInterval = 250;											//Keepalive time for a paired connection
 		uint32_t _pairingInterval = 5000;											//How often to send pairing packets
 		uint32_t _sendTimer = 0;													//Timer for sent packets
@@ -270,6 +484,11 @@ class m2mDirect	{
 		uint32_t _startingSendquality = 0x00000000;
 		uint32_t _echoQuality = 0x00000000;											//A measure of echo quality, using keepalive echoes
 		uint32_t _startingEchoQuality = 0x00000000;
+		int8_t _currentTxPower = 0;													//Current Tx power
+		int8_t _minTxPower = 9;														//Minimum Tx power 20dBm (80 * 0.25)
+		int8_t _maxTxPower = 80;													//Maximum Tx power 20dBm (80 * 0.25)
+		uint32_t _lastTxPowerChange = 0;
+		bool _lastTxPowerChangeDownwards = false;
 		uint8_t _primaryEncryptionKey[16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};		//Primary encryption key
 		uint8_t _localEncryptionKey[16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};		//Encryption key for this device
 		uint8_t _localMacAddress[6] = {0, 0, 0, 0, 0, 0};							//MAC address of this device
@@ -289,6 +508,7 @@ class m2mDirect	{
 		uint8_t _receivedPacketBufferPosition = 2;									//Position in received data buffer
 		bool _dataReceived = false;													//Flag to trigger callback when data is received
 		//Callbacks
+		std::function<void()> pairingCallback = nullptr;							//Pointer to the pairing start callback
 		std::function<void()> pairedCallback = nullptr;								//Pointer to the paired callback
 		std::function<void()> connectedCallback = nullptr;							//Pointer to the connected callback
 		std::function<void()> disconnectedCallback = nullptr;						//Pointer to the disconnected callback
@@ -320,24 +540,60 @@ class m2mDirect	{
 		void _printCurrentState();	
 		void _debugState();	
 		uint8_t _currentChannel();													//Current WiFi channel
-		uint8_t ICACHE_FLASH_ATTR determineDataType(bool type)		{return(DATA_BOOL		);}
-		uint8_t ICACHE_FLASH_ATTR determineDataType(char type)		{return(DATA_CHAR		);}
-		uint8_t ICACHE_FLASH_ATTR determineDataType(uint8_t type)	{return(DATA_UINT8_T	);}
-		uint8_t ICACHE_FLASH_ATTR determineDataType(int8_t type)	{return(DATA_INT8_T		);}
-		uint8_t ICACHE_FLASH_ATTR determineDataType(uint16_t type)	{return(DATA_UINT16_T	);}
-		uint8_t ICACHE_FLASH_ATTR determineDataType(int16_t type)	{return(DATA_INT16_T	);}
-		uint8_t ICACHE_FLASH_ATTR determineDataType(uint32_t type)	{return(DATA_UINT32_T	);}
-		uint8_t ICACHE_FLASH_ATTR determineDataType(int32_t type)	{return(DATA_INT32_T	);}
-		uint8_t ICACHE_FLASH_ATTR determineDataType(uint64_t type)	{return(DATA_UINT64_T	);}
-		uint8_t ICACHE_FLASH_ATTR determineDataType(int64_t type)	{return(DATA_INT64_T	);}
-		uint8_t ICACHE_FLASH_ATTR determineDataType(float type)		{return(DATA_FLOAT		);}
-		uint8_t ICACHE_FLASH_ATTR determineDataType(double type)	{return(DATA_DOUBLE		);}
-		uint8_t ICACHE_FLASH_ATTR determineDataType(String type)	{return(DATA_STRING		);}
+		uint8_t ICACHE_FLASH_ATTR determineDataType(bool type)		{return(DATA_BOOL			);}
+		uint8_t ICACHE_FLASH_ATTR determineDataType(uint8_t type)	{return(DATA_UINT8_T		);}
+		uint8_t ICACHE_FLASH_ATTR determineDataType(uint8_t* type)	{return(DATA_UINT8_T_ARRAY	);}
+		uint8_t ICACHE_FLASH_ATTR determineDataType(int8_t type)	{return(DATA_INT8_T			);}
+		uint8_t ICACHE_FLASH_ATTR determineDataType(int8_t* type)	{return(DATA_INT8_T_ARRAY	);}
+		uint8_t ICACHE_FLASH_ATTR determineDataType(uint16_t type)	{return(DATA_UINT16_T		);}
+		uint8_t ICACHE_FLASH_ATTR determineDataType(uint16_t* type)	{return(DATA_UINT16_T_ARRAY	);}
+		uint8_t ICACHE_FLASH_ATTR determineDataType(int16_t type)	{return(DATA_INT16_T		);}
+		uint8_t ICACHE_FLASH_ATTR determineDataType(int16_t* type)	{return(DATA_INT16_T_ARRAY	);}
+		uint8_t ICACHE_FLASH_ATTR determineDataType(uint32_t type)	{return(DATA_UINT32_T		);}
+		uint8_t ICACHE_FLASH_ATTR determineDataType(uint32_t* type)	{return(DATA_UINT32_T_ARRAY	);}
+		uint8_t ICACHE_FLASH_ATTR determineDataType(int32_t type)	{return(DATA_INT32_T		);}
+		uint8_t ICACHE_FLASH_ATTR determineDataType(int32_t* type)	{return(DATA_INT32_T_ARRAY	);}
+		uint8_t ICACHE_FLASH_ATTR determineDataType(uint64_t type)	{return(DATA_UINT64_T		);}
+		uint8_t ICACHE_FLASH_ATTR determineDataType(uint64_t* type)	{return(DATA_UINT64_T_ARRAY	);}
+		uint8_t ICACHE_FLASH_ATTR determineDataType(int64_t type)	{return(DATA_INT64_T		);}
+		uint8_t ICACHE_FLASH_ATTR determineDataType(int64_t* type)	{return(DATA_INT64_T_ARRAY	);}
+		uint8_t ICACHE_FLASH_ATTR determineDataType(float type)		{return(DATA_FLOAT			);}
+		uint8_t ICACHE_FLASH_ATTR determineDataType(float* type)	{return(DATA_FLOAT_ARRAY	);}
+		uint8_t ICACHE_FLASH_ATTR determineDataType(double type)	{return(DATA_DOUBLE			);}
+		uint8_t ICACHE_FLASH_ATTR determineDataType(double* type)	{return(DATA_DOUBLE_ARRAY	);}
+		uint8_t ICACHE_FLASH_ATTR determineDataType(char type)		{return(DATA_CHAR			);}
+		uint8_t ICACHE_FLASH_ATTR determineDataType(char* type)		{return(DATA_CHAR_ARRAY		);}
+
+		uint8_t ICACHE_FLASH_ATTR determineDataSize(bool* type)		{return(sizeof(bool)		);}
+		uint8_t ICACHE_FLASH_ATTR determineDataSize(uint8_t* type)	{return(sizeof(uint8_t)		);}
+		uint8_t ICACHE_FLASH_ATTR determineDataSize(int8_t* type)	{return(sizeof(int8_t)		);}
+		uint8_t ICACHE_FLASH_ATTR determineDataSize(uint16_t* type)	{return(sizeof(uint16_t)	);}
+		uint8_t ICACHE_FLASH_ATTR determineDataSize(int16_t* type)	{return(sizeof(int16_t)		);}
+		uint8_t ICACHE_FLASH_ATTR determineDataSize(uint32_t* type)	{return(sizeof(uint32_t)	);}
+		uint8_t ICACHE_FLASH_ATTR determineDataSize(int32_t* type)	{return(sizeof(int32_t)		);}
+		uint8_t ICACHE_FLASH_ATTR determineDataSize(uint64_t* type)	{return(sizeof(uint64_t)	);}
+		uint8_t ICACHE_FLASH_ATTR determineDataSize(int64_t* type)	{return(sizeof(int64_t)		);}
+		uint8_t ICACHE_FLASH_ATTR determineDataSize(float* type)	{return(sizeof(float)		);}
+		uint8_t ICACHE_FLASH_ATTR determineDataSize(double* type)	{return(sizeof(double)		);}
+		uint8_t ICACHE_FLASH_ATTR determineDataSize(char* type)		{return(sizeof(char)		);}
+		uint8_t ICACHE_FLASH_ATTR determineDataSize(uint8_t type)	{return(sizeof(uint8_t)		);}
+		uint8_t ICACHE_FLASH_ATTR determineDataSize(int8_t type)	{return(sizeof(int8_t)		);}
+		uint8_t ICACHE_FLASH_ATTR determineDataSize(uint16_t type)	{return(sizeof(uint16_t)	);}
+		uint8_t ICACHE_FLASH_ATTR determineDataSize(int16_t type)	{return(sizeof(int16_t)		);}
+		uint8_t ICACHE_FLASH_ATTR determineDataSize(uint32_t type)	{return(sizeof(uint32_t)	);}
+		uint8_t ICACHE_FLASH_ATTR determineDataSize(int32_t type)	{return(sizeof(int32_t)		);}
+		uint8_t ICACHE_FLASH_ATTR determineDataSize(uint64_t type)	{return(sizeof(uint64_t)	);}
+		uint8_t ICACHE_FLASH_ATTR determineDataSize(int64_t type)	{return(sizeof(int64_t)		);}
+		uint8_t ICACHE_FLASH_ATTR determineDataSize(float type)		{return(sizeof(float)		);}
+		uint8_t ICACHE_FLASH_ATTR determineDataSize(double type)	{return(sizeof(double)		);}
+		uint8_t ICACHE_FLASH_ATTR determineDataSize(char type)		{return(sizeof(char)		);}
 		void _dataTypeDescription(uint8_t type);
 		bool _tieBreak(uint8_t* macAddress1, uint8_t* macAddress2);					//Tie break between two MAC addresses
 		bool _remoteMacAddressSet();												//Returns true if the remote MAC address is confirmed
 		void _indicatorOn();
 		void _indicatorOff();
+		bool _reduceTxPower();														//Reduce the Tx power
+		bool _increaseTxPower();													//Increase the Tx power
 };
 extern m2mDirect m2m;	//Create an instance of the class, as only one is practically usable at a time
 #endif

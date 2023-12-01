@@ -238,6 +238,13 @@ void m2mDirect::housekeeping()
 							_debugState();
 						}
 					}
+					if(esp_wifi_get_max_tx_power(&_currentTxPower) == ESP_OK)
+					{
+						if(debug_uart_ != nullptr)
+						{
+							debug_uart_->printf_P(PSTR("\r\nStarting Tx power: %.2fdBm"), (float)_currentTxPower * 0.25);
+						}
+					}
 				}
 			}
 		}
@@ -250,6 +257,10 @@ void m2mDirect::housekeeping()
 		_keepaliveInterval = _startingKeepaliveInterval;	//Reset to defaults
 		if(_pairingInfoRead == true)
 		{
+			if(m2m.pairedCallback != nullptr)
+			{
+				m2m.pairedCallback();
+			}
 			state = m2mDirectState::connecting;
 			_indicatorTimerInterval = M2M_DIRECT_INDICATOR_LED_CONNECTING_INTERVAL;
 			if(debug_uart_ != nullptr)
@@ -269,6 +280,10 @@ void m2mDirect::housekeeping()
 			}
 			_createPairingMessage();
 			state = m2mDirectState::pairing;
+			if(m2m.pairingCallback != nullptr)
+			{
+				m2m.pairingCallback();
+			}
 			_indicatorTimerInterval = M2M_DIRECT_INDICATOR_LED_PAIRING_INTERVAL;
 			if(debug_uart_ != nullptr)
 			{
@@ -335,6 +350,22 @@ void m2mDirect::housekeeping()
 		if(millis() - _localActivityTimer > _keepaliveInterval)
 		{
 			_createKeepaliveMessage();
+			if(_sendQuality == 0xffffffff)
+			{
+				if(_currentTxPower == _minTxPower && _minTxPower > 9 && millis() - _lastTxPowerChange < _keepaliveInterval * 100) //Try reducing the minimum power after 100 good keepalives at the current minimum
+				{
+					_minTxPower--;
+				}
+				_reduceTxPower();
+			}
+			else
+			{
+				if(_lastTxPowerChangeDownwards == true && millis() - _lastTxPowerChange < _keepaliveInterval * 5) //A recent power reduction _probably_ caused packet loss
+				{
+					_minTxPower++;
+				}
+				_increaseTxPower();
+			}
 			_sendUnicastPacket(_protocolPacketBuffer, _protocolPacketBufferPosition);	//Send quality and keepalive interval is automatically decremented in _sendUnicastPacket if it fails
 			_advanceTimers();	//Advance the timers for keepalives
 			//Check send quality
@@ -639,7 +670,7 @@ uint8_t ICACHE_FLASH_ATTR m2mDirect::_leastCongestedChannel()
 			debug_uart_->print(WiFi.isHidden(ssid));
 			#endif
 		}
-		rssi[WiFi.channel(ssid) - 1] += (WiFi.RSSI(ssid) > -85 ? WiFi.RSSI(ssid) + 85 : 0);	//Total up the RSSI for each channel, shifted to -85 means 0;
+		rssi[WiFi.channel(ssid) - 1]+=(WiFi.RSSI(ssid) > -85 ? WiFi.RSSI(ssid) + 85 : 0);	//Total up the RSSI for each channel, shifted to -85 means 0;
 	}
 	if(debug_uart_ != nullptr)
 	{
@@ -929,13 +960,13 @@ bool ICACHE_FLASH_ATTR m2mDirect::_initialiseEspNowCallbacks()
 	#endif
 		//Copy the received CRC32
 		uint32_t receivedCrc = receivedMessage[receivedMessageLength - 1];
-		receivedCrc += receivedMessage[receivedMessageLength - 2] << 8;
-		receivedCrc += receivedMessage[receivedMessageLength - 3] << 16;
-		receivedCrc += receivedMessage[receivedMessageLength - 4] << 24;
+		receivedCrc+=receivedMessage[receivedMessageLength - 2] << 8;
+		receivedCrc+=receivedMessage[receivedMessageLength - 3] << 16;
+		receivedCrc+=receivedMessage[receivedMessageLength - 4] << 24;
 		#ifdef M2M_DIRECT_DEBUG_RECEIVE
 		if(m2m.debug_uart_ != nullptr)
 		{
-			m2m.debug_uart_->printf_P(PSTR("\n\rRX %u bytes from:%02x%02x%02x%02x%02x%02x "), receivedMessageLength, macAddress[0], macAddress[1], macAddress[2], macAddress[3], macAddress[4], macAddress[5]);
+			m2m.debug_uart_->printf_P(PSTR("\n\rRX %03u bytes from:%02x%02x%02x%02x%02x%02x "), receivedMessageLength, macAddress[0], macAddress[1], macAddress[2], macAddress[3], macAddress[4], macAddress[5]);
 			m2m._printPacketDescription(receivedMessage[0]);
 			//m2m.debug_uart_->printf_P(PSTR(" CRC:%08x "),  receivedCrc);
 		}
@@ -1381,13 +1412,13 @@ bool ICACHE_FLASH_ATTR m2mDirect::_initialiseEspNowCallbacks()
 			{
 				//Extract the local/remote activity timers for echo quality calculations
 				m2m._remoteActivityTimer  =	receivedMessage[14] << 24;
-				m2m._remoteActivityTimer += receivedMessage[15] << 16;
-				m2m._remoteActivityTimer += receivedMessage[16] << 8;
-				m2m._remoteActivityTimer += receivedMessage[17];
+				m2m._remoteActivityTimer+=receivedMessage[15] << 16;
+				m2m._remoteActivityTimer+=receivedMessage[16] << 8;
+				m2m._remoteActivityTimer+=receivedMessage[17];
 				m2m.receivedLocalActivityTimer = receivedMessage[18] << 24;
-				m2m.receivedLocalActivityTimer += receivedMessage[19] << 16;
-				m2m.receivedLocalActivityTimer += receivedMessage[20] << 8;
-				m2m.receivedLocalActivityTimer += receivedMessage[21];
+				m2m.receivedLocalActivityTimer+=receivedMessage[19] << 16;
+				m2m.receivedLocalActivityTimer+=receivedMessage[20] << 8;
+				m2m.receivedLocalActivityTimer+=receivedMessage[21];
 				//Reduce echo quality
 				m2m._echoQuality = m2m._echoQuality >> 1;
 				if(m2m.state == m2mDirectState::pairing) //Getting here implies pairing failed
@@ -1750,13 +1781,13 @@ void ICACHE_FLASH_ATTR m2mDirect::_createPairingMessage()
 	_protocolPacketBuffer[_protocolPacketBufferPosition++] = _communicationChannel;
 	//Add local MAC address
 	memcpy(&_protocolPacketBuffer[_protocolPacketBufferPosition], _localMacAddress, MAC_ADDRESS_LENGTH);
-	_protocolPacketBufferPosition += MAC_ADDRESS_LENGTH;
+	_protocolPacketBufferPosition+=MAC_ADDRESS_LENGTH;
 	//Add global encryption key
 	memcpy(&_protocolPacketBuffer[_protocolPacketBufferPosition], _primaryEncryptionKey, ENCRYPTION_KEY_LENGTH);
-	_protocolPacketBufferPosition += ENCRYPTION_KEY_LENGTH;
+	_protocolPacketBufferPosition+=ENCRYPTION_KEY_LENGTH;
 	//Add local encryption key
 	memcpy(&_protocolPacketBuffer[_protocolPacketBufferPosition], _localEncryptionKey, ENCRYPTION_KEY_LENGTH);
-	_protocolPacketBufferPosition += ENCRYPTION_KEY_LENGTH;
+	_protocolPacketBufferPosition+=ENCRYPTION_KEY_LENGTH;
 	//Add local name if there is one
 	if(localDeviceName != nullptr)
 	{
@@ -1764,7 +1795,7 @@ void ICACHE_FLASH_ATTR m2mDirect::_createPairingMessage()
 		_protocolPacketBuffer[_protocolPacketBufferPosition++] = strlen(localDeviceName);
 		//Add the name
 		memcpy(&_protocolPacketBuffer[_protocolPacketBufferPosition], localDeviceName, strlen(localDeviceName));
-		_protocolPacketBufferPosition += strlen(localDeviceName);
+		_protocolPacketBufferPosition+=strlen(localDeviceName);
 	}
 	else
 	{
@@ -1868,16 +1899,16 @@ void ICACHE_FLASH_ATTR m2mDirect::_createPairingAckMessage()
 	_protocolPacketBuffer[_protocolPacketBufferPosition++] = _communicationChannel;
 	//Add local MAC address
 	memcpy(&_protocolPacketBuffer[_protocolPacketBufferPosition], _localMacAddress, MAC_ADDRESS_LENGTH);
-	_protocolPacketBufferPosition += MAC_ADDRESS_LENGTH;
+	_protocolPacketBufferPosition+=MAC_ADDRESS_LENGTH;
 	//Add remote MAC address
 	memcpy(&_protocolPacketBuffer[_protocolPacketBufferPosition], _remoteMacAddress, MAC_ADDRESS_LENGTH);
-	_protocolPacketBufferPosition += MAC_ADDRESS_LENGTH;
+	_protocolPacketBufferPosition+=MAC_ADDRESS_LENGTH;
 	//Add global encryption key
 	memcpy(&_protocolPacketBuffer[_protocolPacketBufferPosition], _primaryEncryptionKey, ENCRYPTION_KEY_LENGTH);
-	_protocolPacketBufferPosition += ENCRYPTION_KEY_LENGTH;
+	_protocolPacketBufferPosition+=ENCRYPTION_KEY_LENGTH;
 	//Add local encryption key
 	memcpy(&_protocolPacketBuffer[_protocolPacketBufferPosition], _localEncryptionKey, ENCRYPTION_KEY_LENGTH);
-	_protocolPacketBufferPosition += ENCRYPTION_KEY_LENGTH;
+	_protocolPacketBufferPosition+=ENCRYPTION_KEY_LENGTH;
 	//Add local name if there is one
 	if(localDeviceName != nullptr)
 	{
@@ -1885,7 +1916,7 @@ void ICACHE_FLASH_ATTR m2mDirect::_createPairingAckMessage()
 		_protocolPacketBuffer[_protocolPacketBufferPosition++] = strlen(localDeviceName);
 		//Add the name
 		memcpy(&_protocolPacketBuffer[_protocolPacketBufferPosition], localDeviceName, strlen(localDeviceName));
-		_protocolPacketBufferPosition += strlen(localDeviceName);
+		_protocolPacketBufferPosition+=strlen(localDeviceName);
 	}
 	else
 	{
@@ -1978,10 +2009,10 @@ void ICACHE_FLASH_ATTR m2mDirect::_createKeepaliveMessage()
 	_protocolPacketBuffer[_protocolPacketBufferPosition++] = _communicationChannel;
 	//Add local MAC address
 	memcpy(&_protocolPacketBuffer[_protocolPacketBufferPosition], _localMacAddress, MAC_ADDRESS_LENGTH);
-	_protocolPacketBufferPosition += MAC_ADDRESS_LENGTH;
+	_protocolPacketBufferPosition+=MAC_ADDRESS_LENGTH;
 	//Add remote MAC address
 	memcpy(&_protocolPacketBuffer[_protocolPacketBufferPosition], _remoteMacAddress, MAC_ADDRESS_LENGTH);
-	_protocolPacketBufferPosition += MAC_ADDRESS_LENGTH;
+	_protocolPacketBufferPosition+=MAC_ADDRESS_LENGTH;
 	//Add local timestamp
 	_protocolPacketBuffer[_protocolPacketBufferPosition++] = (_localActivityTimer & 0xff000000) >> 24;
 	_protocolPacketBuffer[_protocolPacketBufferPosition++] = (_localActivityTimer & 0x00ff0000) >> 16;
@@ -1992,6 +2023,9 @@ void ICACHE_FLASH_ATTR m2mDirect::_createKeepaliveMessage()
 	_protocolPacketBuffer[_protocolPacketBufferPosition++] = (_remoteActivityTimer & 0x00ff0000) >> 16;
 	_protocolPacketBuffer[_protocolPacketBufferPosition++] = (_remoteActivityTimer & 0x0000ff00) >> 8;
 	_protocolPacketBuffer[_protocolPacketBufferPosition++] = (_remoteActivityTimer & 0x000000ff);
+	_protocolPacketBuffer[_protocolPacketBufferPosition++] = _minTxPower;
+	_protocolPacketBuffer[_protocolPacketBufferPosition++] = _currentTxPower;
+	_protocolPacketBuffer[_protocolPacketBufferPosition++] = _maxTxPower;
 	//Pad the message
 	while(_protocolPacketBufferPosition < MINIMUM_MESSAGE_SIZE)
 	{
@@ -2016,7 +2050,7 @@ bool ICACHE_FLASH_ATTR m2mDirect::_sendBroadcastPacket(uint8_t* buffer, uint8_t 
 {
 	if(debug_uart_ != nullptr)
 	{
-		debug_uart_->printf_P(PSTR("\n\rTX %i bytes broadcast on channel:%d "), length, _currentChannel());
+		debug_uart_->printf_P(PSTR("\n\rTX %03u bytes broadcast on channel:%d %.2fdBm "), length, _currentChannel(), (float)_currentTxPower * 0.25);
 		_printPacketDescription(_protocolPacketBuffer[0]);
 	}
 	int result = esp_now_send(_broadcastMacAddress, buffer, length);
@@ -2058,8 +2092,8 @@ bool ICACHE_FLASH_ATTR m2mDirect::_sendUnicastPacket(uint8_t* buffer, uint8_t le
 	#ifdef M2M_DIRECT_DEBUG_SEND
 	if(debug_uart_ != nullptr)
 	{
-		debug_uart_->printf_P(PSTR("\n\rTX %i bytes   to:%02x%02x%02x%02x%02x%02x "), length, _remoteMacAddress[0], _remoteMacAddress[1], _remoteMacAddress[2], _remoteMacAddress[3], _remoteMacAddress[4], _remoteMacAddress[5]);
-		_printPacketDescription(_protocolPacketBuffer[0]);
+		debug_uart_->printf_P(PSTR("\n\rTX %03u bytes   to:%02x%02x%02x%02x%02x%02x "), length, _remoteMacAddress[0], _remoteMacAddress[1], _remoteMacAddress[2], _remoteMacAddress[3], _remoteMacAddress[4], _remoteMacAddress[5]);
+		_printPacketDescription(buffer[0]);
 	}
 	#endif
 	_waitingForSendCallback = wait;
@@ -2078,7 +2112,7 @@ bool ICACHE_FLASH_ATTR m2mDirect::_sendUnicastPacket(uint8_t* buffer, uint8_t le
 			#ifdef M2M_DIRECT_DEBUG_SEND
 			if(debug_uart_ != nullptr)
 			{
-				debug_uart_->printf(" sendQ:%08x echoQ:%08x", _sendQuality, _echoQuality);
+				debug_uart_->printf(" sendQ:%08x echoQ:%08x %.2fdBm", _sendQuality, _echoQuality, (float)_currentTxPower * 0.25);
 			}
 			#endif
 			if(_sendQuality == 0xffffffff)
@@ -2092,7 +2126,7 @@ bool ICACHE_FLASH_ATTR m2mDirect::_sendUnicastPacket(uint8_t* buffer, uint8_t le
 			#ifdef M2M_DIRECT_DEBUG_SEND
 			if(debug_uart_ != nullptr)
 			{
-				debug_uart_->printf(" timeout sendQ:%08x echoQ:%08x", _sendQuality, _echoQuality);
+				debug_uart_->printf(" timeout sendQ:%08x echoQ:%08x %.2fdBm", _sendQuality, _echoQuality, (float)_currentTxPower * 0.25);
 			}
 			#endif
 			_waitingForSendCallback = false;
@@ -2103,7 +2137,7 @@ bool ICACHE_FLASH_ATTR m2mDirect::_sendUnicastPacket(uint8_t* buffer, uint8_t le
 		#ifdef M2M_DIRECT_DEBUG_SEND
 		if(debug_uart_ != nullptr)
 		{
-			debug_uart_->printf(" failed sendQ:%08x echoQ:%08x", _sendQuality, _echoQuality);
+			debug_uart_->printf(" failed sendQ:%08x echoQ:%08x %.2fdBm", _sendQuality, _echoQuality, (float)_currentTxPower * 0.25);
 		}
 		#endif
 	}
@@ -2120,7 +2154,7 @@ uint8_t ICACHE_FLASH_ATTR m2mDirect::_countBits(uint32_t thingToCount)
   uint8_t result = 0;
   for(uint8_t i = 0; i < 32 ; i++)
   {
-    result += (0x00000001 << i) & thingToCount ? 1 : 0;
+    result+=(0x00000001 << i) & thingToCount ? 1 : 0;
   }
   return result;
 }
@@ -2135,7 +2169,7 @@ void ICACHE_FLASH_ATTR m2mDirect::_printPacketDescription(uint8_t type)
 	{
 		if(type == M2M_DIRECT_PAIRING_FLAG)
 		{
-			debug_uart_->print(F("PAIRING"));
+			debug_uart_->print(F("PAIRING    "));
 		}
 		else if(type == M2M_DIRECT_PAIRING_ACK_FLAG)
 		{
@@ -2143,11 +2177,11 @@ void ICACHE_FLASH_ATTR m2mDirect::_printPacketDescription(uint8_t type)
 		}
 		else if(type == M2M_DIRECT_KEEPALIVE_FLAG)
 		{
-			debug_uart_->print(F("KEEPALIVE"));
+			debug_uart_->print(F("KEEPALIVE  "));
 		}
 		else if(type == M2M_DIRECT_DATA_FLAG)
 		{
-			debug_uart_->print(F("DATA"));
+			debug_uart_->print(F("APPLICATION"));
 		}
 	}
 }
@@ -2215,6 +2249,15 @@ void ICACHE_FLASH_ATTR m2mDirect::_printCurrentState()
 			debug_uart_->print(F("disconnected"));
 		}
 	}
+}
+/*
+ *
+ *	Sets the callback function for when the device starts 'pairing'
+ *
+ */
+m2mDirect& m2mDirect::setPairingCallback(std::function<void()> function) {
+    this->pairingCallback = function;
+    return *this;
 }
 /*
  *
@@ -2293,6 +2336,7 @@ bool ICACHE_FLASH_ATTR m2mDirect::sendMessage(bool wait)
 	{
 		_applicationBufferPosition = 2;		//Reset the buffer position for the next message
 		_applicationPacketBuffer[1] = 0;	//Reset the field count for the next message
+		//_advanceTimers();	//Advance the timers for keepalives
 		return true;
 	}
 	else
@@ -2300,6 +2344,7 @@ bool ICACHE_FLASH_ATTR m2mDirect::sendMessage(bool wait)
 		_applicationBufferPosition = 2;		//Reset the buffer position for the next message
 		_applicationPacketBuffer[1] = 0;	//Reset the field count for the next message
 	}
+	//_advanceTimers();	//Advance the timers for keepalives
 	return false;
 }
 /*
@@ -2353,11 +2398,101 @@ uint8_t ICACHE_FLASH_ATTR m2mDirect::nextDataType()
 	{
 		return DATA_UNAVAILABLE;
 	}
-	if(_receivedPacketBuffer[_receivedPacketBufferPosition] == DATA_BOOL_TRUE)
+	if(_receivedPacketBuffer[_receivedPacketBufferPosition] == DATA_BOOL_TRUE)	//Handles the case of a single bool true
 	{
 		return DATA_BOOL;
 	}
-	return _receivedPacketBuffer[_receivedPacketBufferPosition];
+	return (_receivedPacketBuffer[_receivedPacketBufferPosition] & 0x8f);	//Strip out any array size before returning it
+}
+/*
+ *
+ *	Returns the 'length' of the next field for strings and arrays
+ *
+ */
+uint8_t ICACHE_FLASH_ATTR m2mDirect::nextDataLength()
+{
+	if(_receivedPacketBuffer[1] == 0 || ((_receivedPacketBuffer[_receivedPacketBufferPosition] & 0x80) == 0 && _receivedPacketBuffer[_receivedPacketBufferPosition] != 0x0d))
+	{
+		return 0;
+	}
+	return _receivedPacketBuffer[_receivedPacketBufferPosition+1];
+}
+/*
+ *
+ *	Skip the next field
+ *
+ */
+void ICACHE_FLASH_ATTR m2mDirect::skipReceivedData()
+{
+	if(_receivedPacketBuffer[1] == 0)
+	{
+		return;
+	}
+	_receivedPacketBuffer[1]--;	//Mark the field as retrieved
+	if(_receivedPacketBuffer[1] == 0)
+	{
+		_receivedPacketBufferPosition = 2;		//Reset the buffer position for the next message
+	}
+	else
+	{
+		switch (_receivedPacketBuffer[_receivedPacketBufferPosition] & 0x0f)
+		{
+			case DATA_BOOL:
+				_receivedPacketBufferPosition++;
+			break;
+			case DATA_BOOL_TRUE:
+				_receivedPacketBufferPosition++;
+			break;
+			case DATA_UINT8_T:
+				_receivedPacketBufferPosition+=sizeof(uint8_t)+1;
+			break;
+			case DATA_UINT16_T:
+				_receivedPacketBufferPosition+=sizeof(uint16_t)+1;
+			break;
+			case DATA_UINT32_T:
+				_receivedPacketBufferPosition+=sizeof(uint32_t)+1;
+			break;
+			case DATA_UINT64_T:
+				_receivedPacketBufferPosition+=sizeof(uint64_t)+1;
+			break;
+			case DATA_INT8_T:
+				_receivedPacketBufferPosition+=sizeof(int8_t)+1;
+			break;
+			case DATA_INT16_T:
+				_receivedPacketBufferPosition+=sizeof(int16_t)+1;
+			break;
+			case DATA_INT32_T:
+				_receivedPacketBufferPosition+=sizeof(int32_t)+1;
+			break;
+			case DATA_INT64_T:
+				_receivedPacketBufferPosition+=sizeof(int64_t)+1;
+			break;
+			case DATA_FLOAT:
+				_receivedPacketBufferPosition+=sizeof(float)+1;
+			break;
+			case DATA_DOUBLE:
+				_receivedPacketBufferPosition+=sizeof(double)+1;
+			break;
+			case DATA_CHAR:
+				_receivedPacketBufferPosition+=sizeof(char)+1;
+			break;
+			case DATA_STR:
+				//if((_receivedPacketBuffer[_receivedPacketBufferPosition] & 0xf0) == 0)	//Medium char array, length in next byte
+				{
+					_receivedPacketBufferPosition+=_receivedPacketBuffer[_receivedPacketBufferPosition+1]+1;
+				}
+				/*
+				else if((_receivedPacketBuffer[_receivedPacketBufferPosition] & 0xf0) < M2M_DIRECT_SMALL_ARRAY_LIMIT + 1)	//Short char array, length in type field
+				{
+					_receivedPacketBufferPosition+=((_receivedPacketBuffer[_receivedPacketBufferPosition] & 0xf0) >> 4);	//Allows for zero length strings
+				}
+				*/
+			break;
+			case DATA_CUSTOM:
+				_receivedPacketBufferPosition+=_receivedPacketBuffer[_receivedPacketBufferPosition];
+			break;
+		}
+	}
 }
 /*
  *
@@ -2366,73 +2501,191 @@ uint8_t ICACHE_FLASH_ATTR m2mDirect::nextDataType()
  */
 void ICACHE_FLASH_ATTR m2mDirect::_dataTypeDescription(uint8_t type)
 {
-	debug_uart_->print('(');
-	debug_uart_->print(type);
 	if(type == DATA_UNAVAILABLE)
 	{
-		debug_uart_->print(F(") UNAVAILABLE"));
+		debug_uart_->print(F("UNAVAILABLE"));
 	}
 	else if(type == DATA_BOOL || type == DATA_BOOL_TRUE)
 	{
-		debug_uart_->print(F(") BOOL"));
+		debug_uart_->print(F("BOOL"));
 	}
 	else if(type == DATA_UINT8_T)
 	{
-		debug_uart_->print(F(") UNIT8_T"));
+		debug_uart_->print(F("UINT8_T"));
 	}
 	else if(type == DATA_UINT16_T)
 	{
-		debug_uart_->print(F(") UINT16_T"));
+		debug_uart_->print(F("UINT16_T"));
 	}
 	else if(type == DATA_UINT32_T)
 	{
-		debug_uart_->print(F(") UINT32_T"));
+		debug_uart_->print(F("UINT32_T"));
 	}
 	else if(type == DATA_UINT64_T)
 	{
-		debug_uart_->print(F(") UINT64_T"));
+		debug_uart_->print(F("UINT64_T"));
 	}
 	else if(type == DATA_INT8_T)
 	{
-		debug_uart_->print(F(") INT8_t"));
+		debug_uart_->print(F("INT8_t"));
 	}
 	else if(type == DATA_INT16_T)
 	{
-		debug_uart_->print(F(") INT16_T"));
+		debug_uart_->print(F("INT16_T"));
 	}
 	else if(type == DATA_INT32_T)
 	{
-		debug_uart_->print(F(") INT32_T"));
+		debug_uart_->print(F("INT32_T"));
 	}
 	else if(type == DATA_INT64_T)
 	{
-		debug_uart_->print(F(") INT64_t"));
+		debug_uart_->print(F("INT64_t"));
 	}
 	else if(type == DATA_FLOAT)
 	{
-		debug_uart_->print(F(") FLOAT"));
+		debug_uart_->print(F("FLOAT"));
 	}
 	else if(type == DATA_DOUBLE)
 	{
-		debug_uart_->print(F(") DOUBLE"));
+		debug_uart_->print(F("DOUBLE"));
 	}
 	else if(type == DATA_CHAR)
 	{
-		debug_uart_->print(F(") CHAR"));
+		debug_uart_->print(F("CHAR"));
+	}
+	else if(type == DATA_BOOL_ARRAY)
+	{
+		debug_uart_->print(F("BOOL_ARRAY"));
+	}
+	else if(type == DATA_UINT8_T_ARRAY)
+	{
+		debug_uart_->print(F("UINT8_T_ARRAY"));
+	}
+	else if(type == DATA_UINT16_T_ARRAY)
+	{
+		debug_uart_->print(F("UINT16_T_ARRAY"));
+	}
+	else if(type == DATA_UINT32_T_ARRAY)
+	{
+		debug_uart_->print(F("UINT32_T_ARRAY"));
+	}
+	else if(type == DATA_UINT64_T_ARRAY)
+	{
+		debug_uart_->print(F("UINT64_T_ARRAY"));
+	}
+	else if(type == DATA_INT8_T_ARRAY)
+	{
+		debug_uart_->print(F("INT8_t_ARRAY"));
+	}
+	else if(type == DATA_INT16_T_ARRAY)
+	{
+		debug_uart_->print(F("INT16_T_ARRAY"));
+	}
+	else if(type == DATA_INT32_T_ARRAY)
+	{
+		debug_uart_->print(F("INT32_T_ARRAY"));
+	}
+	else if(type == DATA_INT64_T_ARRAY)
+	{
+		debug_uart_->print(F("INT64_t_ARRAY"));
+	}
+	else if(type == DATA_FLOAT_ARRAY)
+	{
+		debug_uart_->print(F("FLOAT_ARRAY"));
+	}
+	else if(type == DATA_DOUBLE_ARRAY)
+	{
+		debug_uart_->print(F("DOUBLE_ARRAY"));
+	}
+	else if(type == DATA_CHAR_ARRAY)
+	{
+		debug_uart_->print(F("CHAR_ARRAY"));
 	}
 	else if(type == DATA_STR)
 	{
-		debug_uart_->print(F(") C string"));
-	}
-	else if(type == DATA_STRING)
-	{
-		debug_uart_->print(F(") Arduino String"));
+		debug_uart_->print(F("C string"));
 	}
 	else
 	{
-		debug_uart_->print(F(") UNKNOWN"));
+		debug_uart_->print(F("UNKNOWN"));
 	}
+	debug_uart_->printf_P(PSTR("(%02x)"), type);
 }
+/*
+	debug_uart_->print(F("\r\nAdding "));
+	switch (dataType)
+	{
+	  case DATA_UINT8_T:
+		debug_uart_->print(F("uint8_t"));
+	  break;
+	  case DATA_UINT16_T:
+		debug_uart_->print(F("uint16_t"));
+	  break;
+	  case DATA_UINT32_T:
+		debug_uart_->print(F("uint32_t"));
+	  break;
+	  case DATA_UINT64_T:
+		debug_uart_->print(F("uint64_t"));
+	  break;
+	  case DATA_INT8_T:
+		debug_uart_->print(F("int8_t"));
+	  break;
+	  case DATA_INT16_T:
+		debug_uart_->print(F("int16_t"));
+	  break;
+	  case DATA_INT32_T:
+		debug_uart_->print(F("int32_t"));
+	  break;
+	  case DATA_FLOAT:
+		debug_uart_->print(F("float"));
+	  break;
+	  case DATA_DOUBLE:
+		debug_uart_->print(F("double"));
+	  break;
+	  case DATA_CHAR:
+		debug_uart_->print(F("char"));
+	  break;
+	  case DATA_STR:
+		debug_uart_->print(F("str"));
+	  break;
+	  case DATA_CUSTOM:
+		debug_uart_->print(F("custom"));
+	  break;
+	  case DATA_UINT8_T_ARRAY:
+		debug_uart_->print(F("uint8_t["));
+	  break;
+	  case DATA_UINT16_T_ARRAY:
+		debug_uart_->print(F("uint16_t["));
+	  break;
+	  case DATA_UINT32_T_ARRAY:
+		debug_uart_->print(F("uint32_t["));
+	  break;
+	  case DATA_UINT64_T_ARRAY:
+		debug_uart_->print(F("uint64_t["));
+	  break;
+	  case DATA_INT8_T_ARRAY:
+		debug_uart_->print(F("int8_t["));
+	  break;
+	  case DATA_INT16_T_ARRAY:
+		debug_uart_->print(F("int16_t["));
+	  break;
+	  case DATA_INT32_T_ARRAY:
+		debug_uart_->print(F("int32_t["));
+	  break;
+	  case DATA_FLOAT_ARRAY:
+		debug_uart_->print(F("float["));
+	  break;
+	  case DATA_DOUBLE_ARRAY:
+		debug_uart_->print(F("double["));
+	  break;
+	  case DATA_CHAR_ARRAY:
+		debug_uart_->print(F("char["));
+	  break;
+	  case DATA_CUSTOM_ARRAY:
+		debug_uart_->print(F("custom["));
+	  break;
+	}
+*/
 /*
  *
  *	Compares two MAC addresses and returns true if the first is higher
@@ -2480,9 +2733,9 @@ bool ICACHE_FLASH_ATTR m2mDirect::_readPairingInfo()
 		CRC32 crc;
 		crc.add(eepromData, EEPROM_DATA_SIZE - 4);
 		uint32_t crcFromEEPROM = eepromData[41];
-		crcFromEEPROM += uint32_t(eepromData[40]) << 8;
-		crcFromEEPROM += uint32_t(eepromData[39]) << 16;
-		crcFromEEPROM += uint32_t(eepromData[38]) << 24;
+		crcFromEEPROM+=uint32_t(eepromData[40]) << 8;
+		crcFromEEPROM+=uint32_t(eepromData[39]) << 16;
+		crcFromEEPROM+=uint32_t(eepromData[38]) << 24;
 		if(crc.calc() == crcFromEEPROM)
 		{
 			if(m2m.debug_uart_ != nullptr)
@@ -2522,16 +2775,16 @@ bool ICACHE_FLASH_ATTR m2mDirect::_readPairingInfo()
 		}
 		uint8_t successes = 0;
 		settings.begin(preferencesNamespace, false);
-		successes += settings.getBytes(pairedMacKey, _remoteMacAddress, 6);
-		successes += settings.getBytes(pairedPrimaryKey, _primaryEncryptionKey, 16);
-		successes += settings.getBytes(pairedLocalKey, _localEncryptionKey, 16);
+		successes+=settings.getBytes(pairedMacKey, _remoteMacAddress, 6);
+		successes+=settings.getBytes(pairedPrimaryKey, _primaryEncryptionKey, 16);
+		successes+=settings.getBytes(pairedLocalKey, _localEncryptionKey, 16);
 		if(settings.getType(pairedNameKey) != PT_INVALID && settings.getType(pairedNameLengthKey) != PT_INVALID)	//There is a name stored
 		{
 			uint8_t len = settings.getUChar(pairedNameLengthKey, 0);
 			if(len > 0)
 			{
 				remoteDeviceName = new char[len + 1];
-				successes += settings.getString(pairedNameKey, remoteDeviceName, len + 1);
+				successes+=settings.getString(pairedNameKey, remoteDeviceName, len + 1);
 				//remoteDeviceName[len] = 0;
 			}
 		}
@@ -2651,13 +2904,13 @@ bool ICACHE_FLASH_ATTR m2mDirect::_writePairingInfo()
 	}
 	uint8_t successes = 0;
 	settings.begin(preferencesNamespace, false);
-	successes += settings.putBytes(pairedMacKey, _remoteMacAddress, 6);
-	successes += settings.putBytes(pairedPrimaryKey, _primaryEncryptionKey, 16);
-	successes += settings.putBytes(pairedLocalKey, _localEncryptionKey, 16);
+	successes+=settings.putBytes(pairedMacKey, _remoteMacAddress, 6);
+	successes+=settings.putBytes(pairedPrimaryKey, _primaryEncryptionKey, 16);
+	successes+=settings.putBytes(pairedLocalKey, _localEncryptionKey, 16);
 	if(remoteDeviceName != nullptr)
 	{
-		successes += settings.putUChar(pairedNameLengthKey, strlen(remoteDeviceName));
-		successes += settings.putString(pairedNameKey, remoteDeviceName);
+		successes+=settings.putUChar(pairedNameLengthKey, strlen(remoteDeviceName));
+		successes+=settings.putString(pairedNameKey, remoteDeviceName);
 	}
 	settings.end();
 	if(successes >= 38)
@@ -2721,13 +2974,13 @@ bool ICACHE_FLASH_ATTR m2mDirect::_deletePairingInfo()
 		}
 		uint8_t successes = 0;
 		settings.begin(preferencesNamespace, false);
-		successes += (settings.remove(pairedMacKey) ? 1 : 0);
-		successes += (settings.remove(pairedPrimaryKey) ? 1 : 0);
-		successes += (settings.remove(pairedLocalKey) ? 1 : 0);
-		successes += (settings.remove(pairedNameLengthKey) ? 1 : 0);
-		successes += (settings.remove(pairedNameKey) ? 1 : 0);
+		successes+=(settings.remove(pairedMacKey) ? 1 : 0);
+		successes+=(settings.remove(pairedPrimaryKey) ? 1 : 0);
+		successes+=(settings.remove(pairedLocalKey) ? 1 : 0);
+		successes+=(settings.remove(pairedNameLengthKey) ? 1 : 0);
+		successes+=(settings.remove(pairedNameKey) ? 1 : 0);
 		settings.end();
-		successes += (esp_now_del_peer(_remoteMacAddress) == ESP_OK ? 1 : 0);
+		successes+=(esp_now_del_peer(_remoteMacAddress) == ESP_OK ? 1 : 0);
 		for(uint8_t address = 0; address < 6; address++)
 		{
 			_remoteMacAddress[address] = 0;
@@ -2795,6 +3048,68 @@ bool ICACHE_FLASH_ATTR m2mDirect::resetPairing()
 			_debugState();
 		}
 		return true;
+	}
+	return false;
+}
+/*
+ *
+ *	Reduce Tx Power
+ *
+ */
+bool ICACHE_FLASH_ATTR m2mDirect::_reduceTxPower()
+{
+	if(_currentTxPower > _minTxPower)
+	{
+		if(esp_wifi_set_max_tx_power(_currentTxPower - 1) == ESP_OK)
+		{
+			if(debug_uart_ != nullptr)
+			{
+				debug_uart_->printf_P(PSTR("\r\nReduced Tx power to: %.2fdBm"), (float)_currentTxPower * 0.25);
+			}
+			_currentTxPower--;
+			_lastTxPowerChange = millis();
+			_lastTxPowerChangeDownwards = true;
+			return true;
+		}
+		else
+		{
+			if(debug_uart_ != nullptr)
+			{
+				debug_uart_->print(F("\r\nUnable to reduced Tx power"));
+			}
+			return false;
+		}
+	}
+	return false;
+}
+/*
+ *
+ *	Increase Tx Power
+ *
+ */
+bool ICACHE_FLASH_ATTR m2mDirect::_increaseTxPower()
+{
+	if(_currentTxPower < _maxTxPower)
+	{
+		if(esp_wifi_set_max_tx_power(_currentTxPower + 1) == ESP_OK)
+		{
+			if(debug_uart_ != nullptr)
+			{
+				debug_uart_->printf_P(PSTR("\r\nIncreased Tx power to: %.2fdBm"), (float)_currentTxPower * 0.25);
+			}
+			_currentTxPower++;
+			_lastTxPowerChange = millis();
+			_lastTxPowerChangeDownwards = false;
+			return true;
+		}
+		else
+		{
+			if(debug_uart_ != nullptr)
+			{
+				debug_uart_->print(F("\r\nUnable to increase Tx power"));
+			}
+			return false;
+		}
 	}
 	return false;
 }
