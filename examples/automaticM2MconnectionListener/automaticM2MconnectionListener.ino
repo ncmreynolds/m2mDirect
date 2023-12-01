@@ -197,6 +197,7 @@ void setup()
   m2m.setConnectedCallback(onConnected);  //Set the 'connected' callback created above
   m2m.setDisconnectedCallback(onDisconnected);  //Set the 'disconnected' callback created above
   m2m.setMessageReceivedCallback(onMessageReceived);  //Set the 'message received' callback created above
+  m2m.setAutomaticTxPower(true); //Enable automatic adjustment of transmit power (default, use false to disable this)
   m2m.begin(1);  //Start the M2M connection
 }
 

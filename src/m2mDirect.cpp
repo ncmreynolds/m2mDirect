@@ -350,21 +350,24 @@ void m2mDirect::housekeeping()
 		if(millis() - _localActivityTimer > _keepaliveInterval)
 		{
 			_createKeepaliveMessage();
-			if(_sendQuality == 0xffffffff)
+			if(_automaticTxPower == true)
 			{
-				if(_currentTxPower == _minTxPower && _minTxPower > 9 && millis() - _lastTxPowerChange < _keepaliveInterval * 100) //Try reducing the minimum power after 100 good keepalives at the current minimum
+				if(_sendQuality == 0xffffffff)
 				{
-					_minTxPower--;
+					if(_currentTxPower == _minTxPower && _minTxPower > 9 && millis() - _lastTxPowerChange < _keepaliveInterval * 100) //Try reducing the minimum power after 100 good keepalives at the current minimum
+					{
+						_minTxPower--;
+					}
+					_reduceTxPower();
 				}
-				_reduceTxPower();
-			}
-			else
-			{
-				if(_lastTxPowerChangeDownwards == true && millis() - _lastTxPowerChange < _keepaliveInterval * 5) //A recent power reduction _probably_ caused packet loss
+				else
 				{
-					_minTxPower++;
+					if(_lastTxPowerChangeDownwards == true && millis() - _lastTxPowerChange < _keepaliveInterval * 5) //A recent power reduction _probably_ caused packet loss
+					{
+						_minTxPower++;
+					}
+					_increaseTxPower();
 				}
-				_increaseTxPower();
 			}
 			_sendUnicastPacket(_protocolPacketBuffer, _protocolPacketBufferPosition);	//Send quality and keepalive interval is automatically decremented in _sendUnicastPacket if it fails
 			_advanceTimers();	//Advance the timers for keepalives
@@ -3113,6 +3116,14 @@ bool ICACHE_FLASH_ATTR m2mDirect::_increaseTxPower()
 	}
 	return false;
 }
-
+/*
+ *
+ *	Enable/disable automatic Tx power
+ *
+ */
+void ICACHE_FLASH_ATTR m2mDirect::setAutomaticTxPower(bool setting)
+{
+	_automaticTxPower = setting;
+}
 m2mDirect m2m;	//Create an instance of the class, as only one is practically usable at a time
 #endif

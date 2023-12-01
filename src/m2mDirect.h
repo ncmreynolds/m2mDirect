@@ -98,6 +98,7 @@ class m2mDirect	{
 		m2mDirect& setMessageReceivedCallback(std::function<void()> function);		//Set the message received callback
 		bool connected();															//Simple boolean measure of being connected
 		uint32_t linkQuality();														//A measure of link quality
+		void setAutomaticTxPower(bool setting = true);								//Enable/disable automatic Tx power
 		void debug(Stream &);														//Start debugging on a stream
 
 		bool ICACHE_FLASH_ATTR addStr(char* dataToAdd)								//Specific method to add a null terminated C string, which sorts out null termination
@@ -484,6 +485,7 @@ class m2mDirect	{
 		uint32_t _startingSendquality = 0x00000000;
 		uint32_t _echoQuality = 0x00000000;											//A measure of echo quality, using keepalive echoes
 		uint32_t _startingEchoQuality = 0x00000000;
+		bool _automaticTxPower = true;												//Enable/disable automatic TxPower
 		int8_t _currentTxPower = 0;													//Current Tx power
 		int8_t _minTxPower = 9;														//Minimum Tx power 20dBm (80 * 0.25)
 		int8_t _maxTxPower = 80;													//Maximum Tx power 20dBm (80 * 0.25)
