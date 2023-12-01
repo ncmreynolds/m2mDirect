@@ -14,11 +14,11 @@
 #include "m2mDirect.h"
 #endif
 
-m2mDirect::m2mDirect()	//Constructor function
+m2mDirectClass::m2mDirectClass()	//Constructor function
 {
 }
 
-m2mDirect::~m2mDirect()	//Destructor function
+m2mDirectClass::~m2mDirectClass()	//Destructor function
 {
 }
 /*
@@ -32,7 +32,7 @@ m2mDirect::~m2mDirect()	//Destructor function
  *
  */
  
-void ICACHE_FLASH_ATTR m2mDirect::localName(String nameToSet) {
+void ICACHE_FLASH_ATTR m2mDirectClass::localName(String nameToSet) {
 	localDeviceName = new char[nameToSet.length() + 1];
 	if(localDeviceName != nullptr)
 	{
@@ -56,7 +56,7 @@ void ICACHE_FLASH_ATTR m2mDirect::localName(String nameToSet) {
  *
  */
 
-char* ICACHE_FLASH_ATTR m2mDirect::localName()
+char* ICACHE_FLASH_ATTR m2mDirectClass::localName()
 {
 	return localDeviceName;
 }
@@ -65,7 +65,7 @@ char* ICACHE_FLASH_ATTR m2mDirect::localName()
  *	Returns true if the remote device has a name
  *
  */
-bool ICACHE_FLASH_ATTR m2mDirect::remoteNameSet()
+bool ICACHE_FLASH_ATTR m2mDirectClass::remoteNameSet()
 {
 	if(remoteDeviceName != nullptr)
 	{
@@ -78,7 +78,7 @@ bool ICACHE_FLASH_ATTR m2mDirect::remoteNameSet()
  *	Returns a pointer to the remote device name
  *
  */
-char* ICACHE_FLASH_ATTR m2mDirect::remoteName()
+char* ICACHE_FLASH_ATTR m2mDirectClass::remoteName()
 {
 	return remoteDeviceName;
 }
@@ -88,9 +88,9 @@ char* ICACHE_FLASH_ATTR m2mDirect::remoteName()
  *
  */
 #if defined(ESP8266) || defined(ESP32)
-void ICACHE_FLASH_ATTR m2mDirect::begin(uint8_t communicationChannel, uint8_t pairingChannel)	{
+void ICACHE_FLASH_ATTR m2mDirectClass::begin(uint8_t communicationChannel, uint8_t pairingChannel)	{
 #else
-void m2mDirect::begin(uint8_t communicationChannel, uint8_t pairingChannel)	{
+void m2mDirectClass::begin(uint8_t communicationChannel, uint8_t pairingChannel)	{
 #endif
 	if(debug_uart_ != nullptr)
 	{
@@ -147,9 +147,9 @@ void m2mDirect::begin(uint8_t communicationChannel, uint8_t pairingChannel)	{
  *
  */
 #if defined(ESP8266) || defined(ESP32)
-void ICACHE_FLASH_ATTR m2mDirect::pairingButtonGpio(uint8_t pin, bool inverted)
+void ICACHE_FLASH_ATTR m2mDirectClass::pairingButtonGpio(uint8_t pin, bool inverted)
 #else
-void m2mDirect::pairingButtonGpio(uint8_t pin, inverted)
+void m2mDirectClass::pairingButtonGpio(uint8_t pin, inverted)
 #endif
 {
 	_pairingButtonGpio = pin;
@@ -161,9 +161,9 @@ void m2mDirect::pairingButtonGpio(uint8_t pin, inverted)
  *
  */
 #if defined(ESP8266) || defined(ESP32)
-void ICACHE_FLASH_ATTR m2mDirect::indicatorGpio(uint8_t pin, bool inverted)
+void ICACHE_FLASH_ATTR m2mDirectClass::indicatorGpio(uint8_t pin, bool inverted)
 #else
-void m2mDirect::indicatorGpio(uint8_t pin, inverted)
+void m2mDirectClass::indicatorGpio(uint8_t pin, inverted)
 #endif
 {
 	_indicatorLedGpio = pin;
@@ -175,9 +175,9 @@ void m2mDirect::indicatorGpio(uint8_t pin, inverted)
  *
  */
 #if defined(ESP8266) || defined(ESP32)
-void ICACHE_FLASH_ATTR m2mDirect::debug(Stream &terminalStream)
+void ICACHE_FLASH_ATTR m2mDirectClass::debug(Stream &terminalStream)
 #else
-void m2mDirect::debug(Stream &terminalStream)
+void m2mDirectClass::debug(Stream &terminalStream)
 #endif
 {
 	debug_uart_ = &terminalStream;		//Set the stream used for the terminal
@@ -194,9 +194,9 @@ void m2mDirect::debug(Stream &terminalStream)
  *
  */
 #if defined(ESP8266) || defined(ESP32)
-void ICACHE_FLASH_ATTR m2mDirect::housekeeping()
+void ICACHE_FLASH_ATTR m2mDirectClass::housekeeping()
 #else
-void m2mDirect::housekeeping()
+void m2mDirectClass::housekeeping()
 #endif
 {
 	if(_dataReceived == true)	//The application has data waiting
@@ -486,12 +486,12 @@ void m2mDirect::housekeeping()
 		*/
 	}
 }
-void ICACHE_FLASH_ATTR m2mDirect::_advanceTimers()
+void ICACHE_FLASH_ATTR m2mDirectClass::_advanceTimers()
 {
 	_previouslocalActivityTimer = _localActivityTimer;
 	_localActivityTimer = millis();
 }
-void ICACHE_FLASH_ATTR m2mDirect::_increaseKeepaliveInterval()
+void ICACHE_FLASH_ATTR m2mDirectClass::_increaseKeepaliveInterval()
 {
 	//_keepaliveInterval = _keepaliveInterval * 2;
 	_keepaliveInterval = _keepaliveInterval + 100;
@@ -500,7 +500,7 @@ void ICACHE_FLASH_ATTR m2mDirect::_increaseKeepaliveInterval()
 		_keepaliveInterval = _maximumKeepaliveInterval;
 	}
 }
-void ICACHE_FLASH_ATTR m2mDirect::_decreaseKeepaliveInterval()
+void ICACHE_FLASH_ATTR m2mDirectClass::_decreaseKeepaliveInterval()
 {
 	_keepaliveInterval = _keepaliveInterval / 2;
 	if(_keepaliveInterval < _minimumKeepaliveInterval)
@@ -508,7 +508,7 @@ void ICACHE_FLASH_ATTR m2mDirect::_decreaseKeepaliveInterval()
 		_keepaliveInterval = _minimumKeepaliveInterval;
 	}
 }
-void ICACHE_FLASH_ATTR m2mDirect::_indicatorOn()
+void ICACHE_FLASH_ATTR m2mDirectClass::_indicatorOn()
 {
 	if(_indicatorLedGpioInverted == true)
 	{
@@ -520,7 +520,7 @@ void ICACHE_FLASH_ATTR m2mDirect::_indicatorOn()
 	}
 	_indicatorState = true;
 }
-void ICACHE_FLASH_ATTR m2mDirect::_indicatorOff()
+void ICACHE_FLASH_ATTR m2mDirectClass::_indicatorOff()
 {
 	if(_indicatorLedGpioInverted == true)
 	{
@@ -537,7 +537,7 @@ void ICACHE_FLASH_ATTR m2mDirect::_indicatorOff()
  *	Register a device as a peer without an encryption key
  *
  */
-bool ICACHE_FLASH_ATTR m2mDirect::_registerPeer(uint8_t* macaddress, uint8_t channel)
+bool ICACHE_FLASH_ATTR m2mDirectClass::_registerPeer(uint8_t* macaddress, uint8_t channel)
 {
 	#if defined(ESP8266)
 	int result = esp_now_add_peer(macaddress, ESP_NOW_ROLE_COMBO, channel, NULL, 0);
@@ -583,7 +583,7 @@ bool ICACHE_FLASH_ATTR m2mDirect::_registerPeer(uint8_t* macaddress, uint8_t cha
  *	Register a device as a peer and set an encryption key
  *
  */
-bool ICACHE_FLASH_ATTR m2mDirect::_registerPeer(uint8_t* macaddress, uint8_t channel, uint8_t* key)
+bool ICACHE_FLASH_ATTR m2mDirectClass::_registerPeer(uint8_t* macaddress, uint8_t channel, uint8_t* key)
 {
 	#if defined(ESP8266)
 	int result = esp_now_add_peer(macaddress,(uint8_t)ESP_NOW_ROLE_COMBO,(uint8_t)channel, key, ENCRYPTION_KEY_LENGTH);
@@ -645,7 +645,7 @@ bool ICACHE_FLASH_ATTR m2mDirect::_registerPeer(uint8_t* macaddress, uint8_t cha
  *	This method scans for the least congested 2.4Ghz channel and uses a simple heuristic to pick the least congested one
  *
  */
-uint8_t ICACHE_FLASH_ATTR m2mDirect::_leastCongestedChannel()
+uint8_t ICACHE_FLASH_ATTR m2mDirectClass::_leastCongestedChannel()
 {
 	WiFi.disconnect();
 	uint8_t numberOfSsids = WiFi.scanNetworks();
@@ -705,7 +705,7 @@ uint8_t ICACHE_FLASH_ATTR m2mDirect::_leastCongestedChannel()
  *	This method manages the changing of the Wi-Fi channel with some verification that it happened
  *
  */
-bool ICACHE_FLASH_ATTR m2mDirect::_changeChannel(uint8_t channel)
+bool ICACHE_FLASH_ATTR m2mDirectClass::_changeChannel(uint8_t channel)
 {
 	if(_currentChannel() != channel)
 	{
@@ -761,7 +761,7 @@ bool ICACHE_FLASH_ATTR m2mDirect::_changeChannel(uint8_t channel)
  *	This method initialises the WiFi interface
  *
  */
-bool ICACHE_FLASH_ATTR m2mDirect::_initialiseWiFi()
+bool ICACHE_FLASH_ATTR m2mDirectClass::_initialiseWiFi()
 {
 	#if defined(ESP8266)
 	if(WiFi.status() == 7)	//This seems to be the 'not started' status, which isn't documented in the ESP8266 core header files. If you don't start WiFi, no packets will be sent
@@ -889,7 +889,7 @@ bool ICACHE_FLASH_ATTR m2mDirect::_initialiseWiFi()
  *	This method sets up ESP-Now with peers, callbacks and so on as necessary
  *
  */
-bool ICACHE_FLASH_ATTR m2mDirect::_initialiseEspNow(uint8_t channel)
+bool ICACHE_FLASH_ATTR m2mDirectClass::_initialiseEspNow(uint8_t channel)
 {
 	if(_changeChannel(channel) == true)
 	{
@@ -949,7 +949,7 @@ bool ICACHE_FLASH_ATTR m2mDirect::_initialiseEspNow(uint8_t channel)
  *	This method configures the ESP-Now callbacks needed to handle incoming messages and verify receipt of outgoing messages
  *
  */
-bool ICACHE_FLASH_ATTR m2mDirect::_initialiseEspNowCallbacks()
+bool ICACHE_FLASH_ATTR m2mDirectClass::_initialiseEspNowCallbacks()
 {
 	if(debug_uart_ != nullptr)
 	{
@@ -1614,7 +1614,7 @@ bool ICACHE_FLASH_ATTR m2mDirect::_initialiseEspNowCallbacks()
  *	Set zeroes for the encryption keys
  *
  */
-void ICACHE_FLASH_ATTR m2mDirect::_clearEncryptionKeys()
+void ICACHE_FLASH_ATTR m2mDirectClass::_clearEncryptionKeys()
 {
 	for(uint8_t index = 0; index < 16; index++)
 	{
@@ -1631,7 +1631,7 @@ void ICACHE_FLASH_ATTR m2mDirect::_clearEncryptionKeys()
  *	Set random numbers for the encryption keys
  *
  */
-void ICACHE_FLASH_ATTR m2mDirect::_chooseEncryptionKeys()
+void ICACHE_FLASH_ATTR m2mDirectClass::_chooseEncryptionKeys()
 {
 	#if defined(ESP8266)
 	//This is the hardware random number generator on the ESP8266
@@ -1730,7 +1730,7 @@ void ICACHE_FLASH_ATTR m2mDirect::_chooseEncryptionKeys()
  *	Set the primary encyption key
  *
  */
-bool ICACHE_FLASH_ATTR m2mDirect::_setPrimaryEncryptionKey()
+bool ICACHE_FLASH_ATTR m2mDirectClass::_setPrimaryEncryptionKey()
 {
 	#if defined (ESP8266)
 	if(esp_now_set_kok(_primaryEncryptionKey, ENCRYPTION_KEY_LENGTH) == ESP_OK)
@@ -1775,7 +1775,7 @@ bool ICACHE_FLASH_ATTR m2mDirect::_setPrimaryEncryptionKey()
  *	This method builds the pairing message
  *
  */
-void ICACHE_FLASH_ATTR m2mDirect::_createPairingMessage()
+void ICACHE_FLASH_ATTR m2mDirectClass::_createPairingMessage()
 {
 	_protocolPacketBufferPosition = 0;
 	//Add packet flag
@@ -1893,7 +1893,7 @@ void ICACHE_FLASH_ATTR m2mDirect::_createPairingMessage()
  *	This method builds the pairing ACK message
  *
  */
-void ICACHE_FLASH_ATTR m2mDirect::_createPairingAckMessage()
+void ICACHE_FLASH_ATTR m2mDirectClass::_createPairingAckMessage()
 {
 	_protocolPacketBufferPosition = 0;
 	//Add packet flag
@@ -2003,7 +2003,7 @@ void ICACHE_FLASH_ATTR m2mDirect::_createPairingAckMessage()
  *	This method builds the keepalive message
  *
  */
-void ICACHE_FLASH_ATTR m2mDirect::_createKeepaliveMessage()
+void ICACHE_FLASH_ATTR m2mDirectClass::_createKeepaliveMessage()
 {
 	_protocolPacketBufferPosition = 0;
 	//Add packet flag
@@ -2049,7 +2049,7 @@ void ICACHE_FLASH_ATTR m2mDirect::_createKeepaliveMessage()
  *	This method sends broadcast ESP-Now messages, mostly used for pairing
  *
  */
-bool ICACHE_FLASH_ATTR m2mDirect::_sendBroadcastPacket(uint8_t* buffer, uint8_t length)
+bool ICACHE_FLASH_ATTR m2mDirectClass::_sendBroadcastPacket(uint8_t* buffer, uint8_t length)
 {
 	if(debug_uart_ != nullptr)
 	{
@@ -2079,7 +2079,7 @@ bool ICACHE_FLASH_ATTR m2mDirect::_sendBroadcastPacket(uint8_t* buffer, uint8_t 
  *	This method sends unicast messages, used for the connection once paired
  *
  */
-bool ICACHE_FLASH_ATTR m2mDirect::_sendUnicastPacket(uint8_t* buffer, uint8_t length, bool wait)
+bool ICACHE_FLASH_ATTR m2mDirectClass::_sendUnicastPacket(uint8_t* buffer, uint8_t length, bool wait)
 {
 	if(esp_now_is_peer_exist(_remoteMacAddress) == 0)
 	{
@@ -2152,7 +2152,7 @@ bool ICACHE_FLASH_ATTR m2mDirect::_sendUnicastPacket(uint8_t* buffer, uint8_t le
  *	Returns the number of 1 bits in an uint32_t, used in measuring link quality
  *
  */
-uint8_t ICACHE_FLASH_ATTR m2mDirect::_countBits(uint32_t thingToCount)
+uint8_t ICACHE_FLASH_ATTR m2mDirectClass::_countBits(uint32_t thingToCount)
 {
   uint8_t result = 0;
   for(uint8_t i = 0; i < 32 ; i++)
@@ -2161,12 +2161,12 @@ uint8_t ICACHE_FLASH_ATTR m2mDirect::_countBits(uint32_t thingToCount)
   }
   return result;
 }
-void ICACHE_FLASH_ATTR m2mDirect::disableEncryption()
+void ICACHE_FLASH_ATTR m2mDirectClass::disableEncryption()
 {
 	_encyptionEnabled = false;
 }
 
-void ICACHE_FLASH_ATTR m2mDirect::_printPacketDescription(uint8_t type)
+void ICACHE_FLASH_ATTR m2mDirectClass::_printPacketDescription(uint8_t type)
 {
 	if(debug_uart_ != nullptr)
 	{
@@ -2188,7 +2188,7 @@ void ICACHE_FLASH_ATTR m2mDirect::_printPacketDescription(uint8_t type)
 		}
 	}
 }
-void ICACHE_FLASH_ATTR m2mDirect::_debugState()
+void ICACHE_FLASH_ATTR m2mDirectClass::_debugState()
 {
 	debug_uart_->print(F("\n\rState: "));
 	_printCurrentState();
@@ -2211,7 +2211,7 @@ void ICACHE_FLASH_ATTR m2mDirect::_debugState()
 		}
 	}
 }
-void ICACHE_FLASH_ATTR m2mDirect::_printCurrentState()
+void ICACHE_FLASH_ATTR m2mDirectClass::_printCurrentState()
 {
 	if(debug_uart_ != nullptr)
 	{
@@ -2258,7 +2258,7 @@ void ICACHE_FLASH_ATTR m2mDirect::_printCurrentState()
  *	Sets the callback function for when the device starts 'pairing'
  *
  */
-m2mDirect& m2mDirect::setPairingCallback(std::function<void()> function) {
+m2mDirectClass& m2mDirectClass::setPairingCallback(std::function<void()> function) {
     this->pairingCallback = function;
     return *this;
 }
@@ -2267,7 +2267,7 @@ m2mDirect& m2mDirect::setPairingCallback(std::function<void()> function) {
  *	Sets the callback function for when the device is 'paired'
  *
  */
-m2mDirect& m2mDirect::setPairedCallback(std::function<void()> function) {
+m2mDirectClass& m2mDirectClass::setPairedCallback(std::function<void()> function) {
     this->pairedCallback = function;
     return *this;
 }
@@ -2276,7 +2276,7 @@ m2mDirect& m2mDirect::setPairedCallback(std::function<void()> function) {
  *	Sets the callback function for when the device is 'conected'
  *
  */
-m2mDirect& m2mDirect::setConnectedCallback(std::function<void()> function) {
+m2mDirectClass& m2mDirectClass::setConnectedCallback(std::function<void()> function) {
     this->connectedCallback = function;
     return *this;
 }
@@ -2285,7 +2285,7 @@ m2mDirect& m2mDirect::setConnectedCallback(std::function<void()> function) {
  *	Sets the callback function for when the device is 'disconnected'
  *
  */
-m2mDirect& m2mDirect::setDisconnectedCallback(std::function<void()> function) {
+m2mDirectClass& m2mDirectClass::setDisconnectedCallback(std::function<void()> function) {
     this->disconnectedCallback = function;
     return *this;
 }
@@ -2294,7 +2294,7 @@ m2mDirect& m2mDirect::setDisconnectedCallback(std::function<void()> function) {
  *	Sets the callback function for when the device receives a message
  *
  */
-m2mDirect& m2mDirect::setMessageReceivedCallback(std::function<void()> function) {
+m2mDirectClass& m2mDirectClass::setMessageReceivedCallback(std::function<void()> function) {
     this->messageReceivedCallback = function;
     return *this;
 }
@@ -2303,7 +2303,7 @@ m2mDirect& m2mDirect::setMessageReceivedCallback(std::function<void()> function)
  *	This returns the link quality heuristic. Higher is better
  *
  */
-uint32_t ICACHE_FLASH_ATTR m2mDirect::linkQuality()
+uint32_t ICACHE_FLASH_ATTR m2mDirectClass::linkQuality()
 {
 	return _sendQuality & _echoQuality;
 }
@@ -2312,7 +2312,7 @@ uint32_t ICACHE_FLASH_ATTR m2mDirect::linkQuality()
  *	Simple boolean measure of being connected
  *
  */
-bool ICACHE_FLASH_ATTR m2mDirect::connected()
+bool ICACHE_FLASH_ATTR m2mDirectClass::connected()
 {
 	return state == m2mDirectState::connected;
 }
@@ -2322,7 +2322,7 @@ bool ICACHE_FLASH_ATTR m2mDirect::connected()
  *	It should be noted confirmation is not guarantee of delivery, but failure is guarantee of failure
  *
  */
-bool ICACHE_FLASH_ATTR m2mDirect::sendMessage(bool wait)
+bool ICACHE_FLASH_ATTR m2mDirectClass::sendMessage(bool wait)
 {
 	CRC32 crc;
 	_applicationPacketBuffer[0] = M2M_DIRECT_DATA_FLAG;	//Make sure this is set as a data packet
@@ -2355,7 +2355,7 @@ bool ICACHE_FLASH_ATTR m2mDirect::sendMessage(bool wait)
  *	Clears any received message so another can be received. There is only one incoming packet buffer!
  *
  */
-void ICACHE_FLASH_ATTR m2mDirect::clearReceivedMessage()
+void ICACHE_FLASH_ATTR m2mDirectClass::clearReceivedMessage()
 {
 	_receivedPacketBuffer[1] = 0;		//Reset the field count for the next message
 	_receivedPacketBufferPosition = 2;	//Reset the buffer position for the next message
@@ -2369,7 +2369,7 @@ void ICACHE_FLASH_ATTR m2mDirect::clearReceivedMessage()
  *	Returns the current 2.4Ghz channel
  *
  */
-uint8_t ICACHE_FLASH_ATTR m2mDirect::_currentChannel()
+uint8_t ICACHE_FLASH_ATTR m2mDirectClass::_currentChannel()
 {
 	#if defined(ESP8266)
 	uint8_t currentChannel = wifi_get_channel();
@@ -2386,7 +2386,7 @@ uint8_t ICACHE_FLASH_ATTR m2mDirect::_currentChannel()
  *	Returns the number of fields are there left in the message
  *
  */
-uint8_t ICACHE_FLASH_ATTR m2mDirect::dataAvailable()
+uint8_t ICACHE_FLASH_ATTR m2mDirectClass::dataAvailable()
 {
 	return _receivedPacketBuffer[1];
 }
@@ -2395,7 +2395,7 @@ uint8_t ICACHE_FLASH_ATTR m2mDirect::dataAvailable()
  *	Returns the 'type' of the next field
  *
  */
-uint8_t ICACHE_FLASH_ATTR m2mDirect::nextDataType()
+uint8_t ICACHE_FLASH_ATTR m2mDirectClass::nextDataType()
 {
 	if(_receivedPacketBuffer[1] == 0)
 	{
@@ -2412,7 +2412,7 @@ uint8_t ICACHE_FLASH_ATTR m2mDirect::nextDataType()
  *	Returns the 'length' of the next field for strings and arrays
  *
  */
-uint8_t ICACHE_FLASH_ATTR m2mDirect::nextDataLength()
+uint8_t ICACHE_FLASH_ATTR m2mDirectClass::nextDataLength()
 {
 	if(_receivedPacketBuffer[1] == 0 || ((_receivedPacketBuffer[_receivedPacketBufferPosition] & 0x80) == 0 && _receivedPacketBuffer[_receivedPacketBufferPosition] != 0x0d))
 	{
@@ -2425,7 +2425,7 @@ uint8_t ICACHE_FLASH_ATTR m2mDirect::nextDataLength()
  *	Skip the next field
  *
  */
-void ICACHE_FLASH_ATTR m2mDirect::skipReceivedData()
+void ICACHE_FLASH_ATTR m2mDirectClass::skipReceivedData()
 {
 	if(_receivedPacketBuffer[1] == 0)
 	{
@@ -2502,7 +2502,7 @@ void ICACHE_FLASH_ATTR m2mDirect::skipReceivedData()
  *	Prints the 'type' for a field label in debugging
  *
  */
-void ICACHE_FLASH_ATTR m2mDirect::_dataTypeDescription(uint8_t type)
+void ICACHE_FLASH_ATTR m2mDirectClass::_dataTypeDescription(uint8_t type)
 {
 	if(type == DATA_UNAVAILABLE)
 	{
@@ -2694,7 +2694,7 @@ void ICACHE_FLASH_ATTR m2mDirect::_dataTypeDescription(uint8_t type)
  *	Compares two MAC addresses and returns true if the first is higher
  *
  */
-bool ICACHE_FLASH_ATTR m2mDirect::_tieBreak(uint8_t* macAddress1, uint8_t* macAddress2)
+bool ICACHE_FLASH_ATTR m2mDirectClass::_tieBreak(uint8_t* macAddress1, uint8_t* macAddress2)
 {
 	if(memcmp(macAddress1,macAddress2,MAC_ADDRESS_LENGTH) > 0)
 	{
@@ -2702,7 +2702,7 @@ bool ICACHE_FLASH_ATTR m2mDirect::_tieBreak(uint8_t* macAddress1, uint8_t* macAd
 	}
 	return false;
 }
-bool ICACHE_FLASH_ATTR m2mDirect::_remoteMacAddressSet()
+bool ICACHE_FLASH_ATTR m2mDirectClass::_remoteMacAddressSet()
 {
 	if(_remoteMacAddress[0] == 0 &&
 		_remoteMacAddress[1] == 0 &&
@@ -2721,7 +2721,7 @@ bool ICACHE_FLASH_ATTR m2mDirect::_remoteMacAddressSet()
  *	Read pairing from EEPROM (ESP8266) or 'preferences' (ESP32)
  *
  */
-bool ICACHE_FLASH_ATTR m2mDirect::_readPairingInfo()
+bool ICACHE_FLASH_ATTR m2mDirectClass::_readPairingInfo()
 {
 	#if defined(ESP8266)
 		if(m2m.debug_uart_ != nullptr)
@@ -2856,7 +2856,7 @@ bool ICACHE_FLASH_ATTR m2mDirect::_readPairingInfo()
  *	Write pairing from EEPROM (ESP8266) or 'preferences' (ESP32)
  *
  */
-bool ICACHE_FLASH_ATTR m2mDirect::_writePairingInfo()
+bool ICACHE_FLASH_ATTR m2mDirectClass::_writePairingInfo()
 {
 	#if defined(ESP8266)
 	if(m2m.debug_uart_ != nullptr)
@@ -2936,7 +2936,7 @@ bool ICACHE_FLASH_ATTR m2mDirect::_writePairingInfo()
  *	Delete pairing from EEPROM (ESP8266) or 'preferences' (ESP32)
  *
  */
-bool ICACHE_FLASH_ATTR m2mDirect::_deletePairingInfo()
+bool ICACHE_FLASH_ATTR m2mDirectClass::_deletePairingInfo()
 {
 	#if defined(ESP8266)
 		if(m2m.debug_uart_ != nullptr)
@@ -3018,7 +3018,7 @@ bool ICACHE_FLASH_ATTR m2mDirect::_deletePairingInfo()
  *	Reset pairing info and reset state to re-pair
  *
  */
-bool ICACHE_FLASH_ATTR m2mDirect::resetPairing()
+bool ICACHE_FLASH_ATTR m2mDirectClass::resetPairing()
 {
 	if(_deletePairingInfo())
 	{
@@ -3059,7 +3059,7 @@ bool ICACHE_FLASH_ATTR m2mDirect::resetPairing()
  *	Reduce Tx Power
  *
  */
-bool ICACHE_FLASH_ATTR m2mDirect::_reduceTxPower()
+bool ICACHE_FLASH_ATTR m2mDirectClass::_reduceTxPower()
 {
 	if(_currentTxPower > _minTxPower)
 	{
@@ -3090,7 +3090,7 @@ bool ICACHE_FLASH_ATTR m2mDirect::_reduceTxPower()
  *	Increase Tx Power
  *
  */
-bool ICACHE_FLASH_ATTR m2mDirect::_increaseTxPower()
+bool ICACHE_FLASH_ATTR m2mDirectClass::_increaseTxPower()
 {
 	if(_currentTxPower < _maxTxPower)
 	{
@@ -3121,9 +3121,9 @@ bool ICACHE_FLASH_ATTR m2mDirect::_increaseTxPower()
  *	Enable/disable automatic Tx power
  *
  */
-void ICACHE_FLASH_ATTR m2mDirect::setAutomaticTxPower(bool setting)
+void ICACHE_FLASH_ATTR m2mDirectClass::setAutomaticTxPower(bool setting)
 {
 	_automaticTxPower = setting;
 }
-m2mDirect m2m;	//Create an instance of the class, as only one is practically usable at a time
+m2mDirectClass m2m;	//Create an instance of the class, as only one is practically usable at a time
 #endif

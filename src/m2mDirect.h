@@ -76,26 +76,26 @@ enum class m2mDirectState: std::uint8_t {
 
 bool initialiseEspNowCallbacks();													//Initialise the ESP-Now callbacks
 
-class m2mDirect	{
+class m2mDirectClass	{
 
 	public:
-		m2mDirect();																//Constructor function
-		~m2mDirect();																//Destructor function
+		m2mDirectClass();																//Constructor function
+		~m2mDirectClass();																//Destructor function
 		char* localName();															//Returns a pointer to the local device name (or nullptr if not set)
 		void localName(char *nameToSet);											//Set a name for the device (optional)
 		void localName(String nameToSet);											//Set a name for the device (optional)
 		bool remoteNameSet();														//Is the remote name set
 		char* remoteName();															//Returns a pointer to the remote device name (or nullptr if not set)
 		void disableEncryption();													//Disable encryption (why?)
-		void begin(uint8_t communicationChannel = 0, uint8_t pairingChannel = 1);	//Start the m2mDirect library
+		void begin(uint8_t communicationChannel = 0, uint8_t pairingChannel = 1);	//Start the m2mDirectClass library
 		void pairingButtonGpio(uint8_t pin = 255, bool inverted = false);			//Set pin used for pairing button GPIO
 		void indicatorGpio(uint8_t pin = 255, bool inverted = false);				//Set pin used for indicator GPIO
 		void housekeeping();														//Maintain keepalives etc.
-		m2mDirect& setPairingCallback(std::function<void()> function);				//Set the pairing start callback (mostly for information if the pairing button is pushed)
-		m2mDirect& setPairedCallback(std::function<void()> function);				//Set the paired callback
-		m2mDirect& setConnectedCallback(std::function<void()> function);			//Set the connected callback
-		m2mDirect& setDisconnectedCallback(std::function<void()> function);			//Set the disconnected callback
-		m2mDirect& setMessageReceivedCallback(std::function<void()> function);		//Set the message received callback
+		m2mDirectClass& setPairingCallback(std::function<void()> function);				//Set the pairing start callback (mostly for information if the pairing button is pushed)
+		m2mDirectClass& setPairedCallback(std::function<void()> function);				//Set the paired callback
+		m2mDirectClass& setConnectedCallback(std::function<void()> function);			//Set the connected callback
+		m2mDirectClass& setDisconnectedCallback(std::function<void()> function);			//Set the disconnected callback
+		m2mDirectClass& setMessageReceivedCallback(std::function<void()> function);		//Set the message received callback
 		bool connected();															//Simple boolean measure of being connected
 		uint32_t linkQuality();														//A measure of link quality
 		void setAutomaticTxPower(bool setting = true);								//Enable/disable automatic Tx power
@@ -597,5 +597,5 @@ class m2mDirect	{
 		bool _reduceTxPower();														//Reduce the Tx power
 		bool _increaseTxPower();													//Increase the Tx power
 };
-extern m2mDirect m2m;	//Create an instance of the class, as only one is practically usable at a time
+extern m2mDirectClass m2m;	//Create an instance of the class, as only one is practically usable at a time
 #endif
