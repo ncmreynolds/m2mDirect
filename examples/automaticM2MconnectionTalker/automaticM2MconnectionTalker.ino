@@ -136,7 +136,7 @@ void loop()
       Serial.printf(PSTR("\r\nSending message with %u fields, link quality: %02x"),fieldsToSend , m2mDirect.linkQuality());
       while(fieldsToSend > 0)
       {
-        //typeToSend = 13;
+        //typeToSend = 0;
         typeToSend = random(0,14);
         switch (typeToSend)
         {

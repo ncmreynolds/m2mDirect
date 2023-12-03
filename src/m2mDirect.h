@@ -152,6 +152,40 @@ class m2mDirectClass	{
 			}
 			return false;	//Not enough space left in the packet
 		}
+		bool ICACHE_FLASH_ATTR add(bool* dataToAdd, uint8_t length)							//Generic templated add functions
+		{
+			uint8_t dataLength = sizeof(bool)*length;
+			if(_applicationBufferPosition + dataLength + 1 < MAXIMUM_MESSAGE_SIZE - M2M_DIRECT_PACKET_OVERHEAD)	//Each piece of data has a byte with it showing the type
+			{
+				if(debug_uart_ != nullptr)
+				{
+					debug_uart_->print(F("\r\nAdding "));
+					_dataTypeDescription(DATA_BOOL_ARRAY);
+				}
+				if(debug_uart_ != nullptr)
+				{
+					debug_uart_->printf_P(PSTR("[%u] %u bytes "), length, dataLength);
+				}
+				_applicationPacketBuffer[_applicationBufferPosition++] = (DATA_BOOL_ARRAY | 0x80);
+				_applicationPacketBuffer[_applicationBufferPosition++] = length;
+				memcpy(&_applicationPacketBuffer[_applicationBufferPosition],dataToAdd,dataLength);	//Copy in the data
+				if(debug_uart_ != nullptr)
+				{
+					for(uint8_t index = 0; index < dataLength; index++)
+					{
+						debug_uart_->print(_applicationPacketBuffer[_applicationBufferPosition+index]);
+						debug_uart_->print(' ');
+					}
+				}
+				_applicationBufferPosition+=dataLength;												//Advance the index past the data
+				_applicationPacketBuffer[1] = _applicationPacketBuffer[1] + 1;										//Increment the field counter
+				return true;
+			}
+			else
+			{
+				return false;	//Not enough space left in the packet
+			}
+		}
 		template<typename typeToAdd>
 		bool ICACHE_FLASH_ATTR add(typeToAdd dataToAdd)							//Generic templated add functions
 		{
@@ -450,13 +484,13 @@ class m2mDirectClass	{
 			else
 			{
 				uint8_t dataType = determineDataType(*dataDestination);
+				if(length > 1)	//Force it to be an array
+				{
+					dataType = dataType | 0x80;
+				}
 				if(dataType == (_receivedPacketBuffer[_receivedPacketBufferPosition] & 0x8f))	//Strip off any array length
 				{
 					uint8_t dataLength = 0;
-					if(length > 1)	//Force it to be an array
-					{
-						dataType = dataType | 0x80;
-					}
 					if(debug_uart_ != nullptr)
 					{
 						debug_uart_->print(F("\r\nRetrieving "));
@@ -625,6 +659,7 @@ class m2mDirectClass	{
 		void _debugState();	
 		uint8_t _currentChannel();													//Current WiFi channel
 		uint8_t ICACHE_FLASH_ATTR determineDataType(bool type)						{return(DATA_BOOL			);}
+		uint8_t ICACHE_FLASH_ATTR determineDataType(bool* type)						{return(DATA_BOOL_ARRAY		);}
 		uint8_t ICACHE_FLASH_ATTR determineDataType(uint8_t type)					{return(DATA_UINT8_T		);}
 		uint8_t ICACHE_FLASH_ATTR determineDataType(uint8_t* type)					{return(DATA_UINT8_T_ARRAY	);}
 		uint8_t ICACHE_FLASH_ATTR determineDataType(int8_t type)					{return(DATA_INT8_T			);}

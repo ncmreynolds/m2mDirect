@@ -2606,7 +2606,11 @@ void ICACHE_FLASH_ATTR m2mDirectClass::_dataTypeDescription(uint8_t type)
 	}
 	else if(type == DATA_STR)
 	{
-		debug_uart_->print(F("C string"));
+		debug_uart_->print(F("DATA_STR"));
+	}
+	else if(type == DATA_CUSTOM)
+	{
+		debug_uart_->print(F("DATA_CUSTOM"));
 	}
 	else
 	{
