@@ -169,9 +169,7 @@ void onMessageReceived()
         retrieveStr();
       break;
       case m2mDirect.DATA_CUSTOM:
-        m2mDirect.skipReceivedData(); //Skips the next field
-        Serial.print(F("\n\r\tCustom: skipped"));
-        m2mDirect.clearReceivedMessage();  //Clear the received message to wait for the next message
+        retrieveCustom();
       break;
       default:
         Serial.print(F("\n\r\tUnable to retrieve received data, unknown type in message"));
@@ -180,6 +178,17 @@ void onMessageReceived()
     }
   }
 }
+
+struct customData{
+   uint8_t a;
+   uint8_t b;
+   uint8_t c;
+   uint8_t d;
+   bool e;
+   bool f;
+   bool g;
+   bool h;
+};
 
 
 void setup()
@@ -649,6 +658,34 @@ void retrieveStr()
   else
   {
     Serial.print(F("\n\r\tunable to retrieve received char array data"));
+    m2mDirect.clearReceivedMessage();  //Clear the received message to wait for the next message
+  }
+}
+void retrieveCustom()
+{
+  customData receivedData;
+  if(m2mDirect.retrieve(&receivedData)) //You must pass by reference the variable to retrieve the data into, unless it is an 'array' like a C string
+  {
+    Serial.print(F("\r\n\tstruct:\ta "));
+    Serial.print(receivedData.a);
+    Serial.print(F("\r\n\t\tb "));
+    Serial.print(receivedData.b);
+    Serial.print(F("\r\n\t\tc "));
+    Serial.print(receivedData.c);
+    Serial.print(F("\r\n\t\td "));
+    Serial.print(receivedData.d);
+    Serial.print(F("\r\n\t\te "));
+    Serial.print(receivedData.e == true ? "true" : "false");
+    Serial.print(F("\r\n\t\tf "));
+    Serial.print(receivedData.f == true ? "true" : "false");
+    Serial.print(F("\r\n\t\tg "));
+    Serial.print(receivedData.g == true ? "true" : "false");
+    Serial.print(F("\r\n\t\th "));
+    Serial.print(receivedData.h == true ? "true" : "false");
+  }
+  else
+  {
+    Serial.print(F("\n\r\tunable to retrieve received custom data"));
     m2mDirect.clearReceivedMessage();  //Clear the received message to wait for the next message
   }
 }

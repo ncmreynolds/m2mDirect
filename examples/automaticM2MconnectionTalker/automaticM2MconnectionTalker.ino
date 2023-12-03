@@ -94,6 +94,16 @@ uint8_t typeToSend = 0;
 char shortTestStr[] = "shortStr";
 char mediumTestStr[] = "Medium length test null terminated char array";
 char utf8TestStr[] = "Y [ˈʏpsilɔn], Yen [jɛn], Yoga [ˈjoːgɑ]";
+struct customData{
+   uint8_t a;
+   uint8_t b;
+   uint8_t c;
+   uint8_t d;
+   bool e;
+   bool f;
+   bool g;
+   bool h;
+};
 
 void setup()
 {
@@ -126,8 +136,8 @@ void loop()
       Serial.printf(PSTR("\r\nSending message with %u fields, link quality: %02x"),fieldsToSend , m2mDirect.linkQuality());
       while(fieldsToSend > 0)
       {
-        //typeToSend = 0;
-        typeToSend = random(0,13);
+        //typeToSend = 13;
+        typeToSend = random(0,14);
         switch (typeToSend)
         {
           case 0:
@@ -168,6 +178,9 @@ void loop()
           break;
           case 12:
             addRandomStr();
+          break;
+          case 13:
+            addRandomStruct();
           break;
         }
       }
@@ -678,4 +691,37 @@ void addRandomStr()
       fieldsToSend--;
     break;
   }
+}
+void addRandomStruct()
+{
+  customData valueToSend;
+  valueToSend.a = randomUint8_t();
+  valueToSend.b = randomUint8_t();
+  valueToSend.c = randomUint8_t();
+  valueToSend.d = randomUint8_t();
+  valueToSend.e = randomBool();
+  valueToSend.f = randomBool();
+  valueToSend.g = randomBool();
+  valueToSend.h = randomBool();
+  Serial.print(F("\r\n\tstruct:\ta "));
+  Serial.print(valueToSend.a);
+  Serial.print(F("\r\n\t\tb "));
+  Serial.print(valueToSend.b);
+  Serial.print(F("\r\n\t\tc "));
+  Serial.print(valueToSend.c);
+  Serial.print(F("\r\n\t\td "));
+  Serial.print(valueToSend.d);
+  Serial.print(F("\r\n\t\te "));
+  Serial.print(valueToSend.e == true ? "true" : "false");
+  Serial.print(F("\r\n\t\tf "));
+  Serial.print(valueToSend.f == true ? "true" : "false");
+  Serial.print(F("\r\n\t\tg "));
+  Serial.print(valueToSend.g == true ? "true" : "false");
+  Serial.print(F("\r\n\t\th "));
+  Serial.print(valueToSend.h == true ? "true" : "false");
+  if(m2mDirect.add(valueToSend) == false)
+  {
+    Serial.print(F(" failed"));
+  }
+  fieldsToSend--;
 }

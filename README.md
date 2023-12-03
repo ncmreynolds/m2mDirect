@@ -137,7 +137,7 @@ Values or arrays of values are 'added' to a message then sent.
     {
     	Serial.print(F("Not added"));
     }
-    
+
 
 This sends a single value, with the library automatically 'serialising' the data into the message storing its type. Null-terminated C strings are a special case. 
 
@@ -390,6 +390,7 @@ void setup()
 ## Known Issues/Omissions
 
 - Channel selection is non-functional, forcing to channel 1 for now
+- Skipping a data field is broken and will probably cause an exception or misreading of later fields
 - No support for ESP8266 yet. This is just due to minor API differences that need coding
 - There is a 'bounce' on initial connection where devices go connected->disconnected->connected quickly and reliable. This needs investigating.
 - There is an aspiration to support key/value pairs for those who like that model. This will mean much less can be squeezed into each packet though.

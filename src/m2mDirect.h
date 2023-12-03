@@ -130,6 +130,28 @@ class m2mDirectClass	{
 			}
 			return false;	//Not enough space left in the packet
 		}
+		bool ICACHE_FLASH_ATTR add(bool dataToAdd)							//Bool is a special case
+		{
+			uint8_t dataLength = sizeof(dataToAdd);
+			if(_applicationBufferPosition + dataLength < MAXIMUM_MESSAGE_SIZE - M2M_DIRECT_PACKET_OVERHEAD)
+			{
+				if(debug_uart_ != nullptr)
+				{
+					debug_uart_->print(F("\r\nAdding bool"));
+				}
+				if((bool)dataToAdd == true)
+				{
+					_applicationPacketBuffer[_applicationBufferPosition++] = DATA_BOOL_TRUE;	//True
+				}
+				else
+				{
+					_applicationPacketBuffer[_applicationBufferPosition++] = DATA_BOOL;			//False
+				}
+				_applicationPacketBuffer[1] = _applicationPacketBuffer[1] + 1;						//Increment the field counter
+				return true;
+			}
+			return false;	//Not enough space left in the packet
+		}
 		template<typename typeToAdd>
 		bool ICACHE_FLASH_ATTR add(typeToAdd dataToAdd)							//Generic templated add functions
 		{
@@ -137,45 +159,25 @@ class m2mDirectClass	{
 			uint8_t dataLength = sizeof(dataToAdd);
 			if(_applicationBufferPosition + dataLength + 1 < MAXIMUM_MESSAGE_SIZE - M2M_DIRECT_PACKET_OVERHEAD)
 			{
-				if(dataType == DATA_BOOL)	//Bool is a special case for packing as it only needs on byte
+				if(debug_uart_ != nullptr)
 				{
-					if(debug_uart_ != nullptr)
-					{
-						debug_uart_->print(F("\r\nAdding bool"));
-					}
-					if((bool)dataToAdd == true)
-					{
-						_applicationPacketBuffer[_applicationBufferPosition++] = DATA_BOOL_TRUE;	//True
-					}
-					else
-					{
-						_applicationPacketBuffer[_applicationBufferPosition++] = DATA_BOOL;			//False
-					}
-					_applicationPacketBuffer[1] = _applicationPacketBuffer[1] + 1;						//Increment the field counter
-					return true;
+					debug_uart_->print(F("\r\nAdding "));
+					_dataTypeDescription(dataType);
+					debug_uart_->printf_P(PSTR(" %u bytes "), dataLength);
 				}
-				else
+				_applicationPacketBuffer[_applicationBufferPosition++] = dataType;
+				memcpy(&_applicationPacketBuffer[_applicationBufferPosition],&dataToAdd,dataLength);	//Copy in the data
+				if(debug_uart_ != nullptr)
 				{
-					if(debug_uart_ != nullptr)
+					for(uint8_t index = 0; index < dataLength; index++)
 					{
-						debug_uart_->print(F("\r\nAdding "));
-						_dataTypeDescription(dataType);
-						debug_uart_->printf_P(PSTR(" %u bytes "), dataLength);
+						debug_uart_->print(_applicationPacketBuffer[_applicationBufferPosition+index]);
+						debug_uart_->print(' ');
 					}
-					_applicationPacketBuffer[_applicationBufferPosition++] = dataType;
-					memcpy(&_applicationPacketBuffer[_applicationBufferPosition],&dataToAdd,dataLength);	//Copy in the data
-					if(debug_uart_ != nullptr)
-					{
-						for(uint8_t index = 0; index < dataLength; index++)
-						{
-							debug_uart_->print(_applicationPacketBuffer[_applicationBufferPosition+index]);
-							debug_uart_->print(' ');
-						}
-					}
-					_applicationBufferPosition+=dataLength;												//Advance the index past the data
-					_applicationPacketBuffer[1] = _applicationPacketBuffer[1] + 1;										//Increment the field counter
-					return true;
 				}
+				_applicationBufferPosition+=dataLength;												//Advance the index past the data
+				_applicationPacketBuffer[1] = _applicationPacketBuffer[1] + 1;										//Increment the field counter
+				return true;
 			}
 			return false;	//Not enough space left in the packet
 		}
@@ -333,8 +335,7 @@ class m2mDirectClass	{
 				}
 			}
 		}
-		template<typename typeToRetrieve>
-		bool ICACHE_FLASH_ATTR retrieve(typeToRetrieve *dataDestination, uint8_t length = 1)			//Generic templated retrieve functions
+		bool ICACHE_FLASH_ATTR retrieve(bool *dataDestination, uint8_t length = 1)			//Bool is a special case
 		{
 			if(_receivedPacketBuffer[1] == 0)
 			{
@@ -375,6 +376,87 @@ class m2mDirectClass	{
 				else if(dataType == (_receivedPacketBuffer[_receivedPacketBufferPosition] & 0x8f))	//Strip off any array length
 				{
 					uint8_t dataLength = 0;
+					if(debug_uart_ != nullptr)
+					{
+						debug_uart_->print(F("\r\nRetrieving "));
+						_dataTypeDescription(dataType);
+					}
+					if((_receivedPacketBuffer[_receivedPacketBufferPosition] & 0xf0) == 0 && length == 1) //It's not an array
+					{
+						_receivedPacketBuffer[1]--;	//Mark the field as retrieved
+						_receivedPacketBufferPosition++;	//Skip over the type marker for the field
+						dataLength = sizeof(bool);	//How long is this?
+					}
+					else if(_receivedPacketBuffer[_receivedPacketBufferPosition+1] == length)	//It's an array and the application is expecting the right length
+					{
+						_receivedPacketBuffer[1]--;	//Mark the field as retrieved
+						_receivedPacketBufferPosition++;	//Skip over the type marker for the field
+						dataLength = sizeof(bool) * _receivedPacketBuffer[_receivedPacketBufferPosition];	//How long is this?
+						_receivedPacketBufferPosition++;	//Skip over the length marker for the field
+						if(debug_uart_ != nullptr)
+						{
+							debug_uart_->print('[');
+							debug_uart_->print(length);
+							debug_uart_->print(']');
+							debug_uart_->print(' ');
+							debug_uart_->print(dataLength);
+							debug_uart_->print(F(" bytes"));
+						}
+					}
+					else
+					{
+						if(debug_uart_ != nullptr)
+						{
+							debug_uart_->print(F(" failed"));
+						}
+						return false; //Do nothing and fail
+					}
+					memcpy(dataDestination,&_receivedPacketBuffer[_receivedPacketBufferPosition],dataLength);	//Copy the data
+					if(_receivedPacketBuffer[1] == 0)
+					{
+						_receivedPacketBufferPosition = 2;		//Reset the buffer position for the next message
+					}
+					else
+					{
+						_receivedPacketBufferPosition+=dataLength;	//Move to the next field
+					}
+					return true;
+				}
+				else
+				{
+					if(debug_uart_ != nullptr)
+					{
+						debug_uart_->print(F("\nWrong data type for retrieval, asked for "));
+						_dataTypeDescription(dataType);
+						debug_uart_->print(F(" packet has "));
+						_dataTypeDescription(_receivedPacketBuffer[_receivedPacketBufferPosition]);
+
+					}
+					return false;
+				}
+			}
+		}
+		template<typename typeToRetrieve>
+		bool ICACHE_FLASH_ATTR retrieve(typeToRetrieve *dataDestination, uint8_t length = 1)			//Generic templated retrieve functions
+		{
+			if(_receivedPacketBuffer[1] == 0)
+			{
+				if(debug_uart_ != nullptr)
+				{
+					debug_uart_->print(F("\nNo data left to retrieve"));
+				}
+				return false;
+			}
+			else
+			{
+				uint8_t dataType = determineDataType(*dataDestination);
+				if(dataType == (_receivedPacketBuffer[_receivedPacketBufferPosition] & 0x8f))	//Strip off any array length
+				{
+					uint8_t dataLength = 0;
+					if(length > 1)	//Force it to be an array
+					{
+						dataType = dataType | 0x80;
+					}
 					if(debug_uart_ != nullptr)
 					{
 						debug_uart_->print(F("\r\nRetrieving "));
@@ -542,29 +624,43 @@ class m2mDirectClass	{
 		void _printCurrentState();	
 		void _debugState();	
 		uint8_t _currentChannel();													//Current WiFi channel
-		uint8_t ICACHE_FLASH_ATTR determineDataType(bool type)		{return(DATA_BOOL			);}
-		uint8_t ICACHE_FLASH_ATTR determineDataType(uint8_t type)	{return(DATA_UINT8_T		);}
-		uint8_t ICACHE_FLASH_ATTR determineDataType(uint8_t* type)	{return(DATA_UINT8_T_ARRAY	);}
-		uint8_t ICACHE_FLASH_ATTR determineDataType(int8_t type)	{return(DATA_INT8_T			);}
-		uint8_t ICACHE_FLASH_ATTR determineDataType(int8_t* type)	{return(DATA_INT8_T_ARRAY	);}
-		uint8_t ICACHE_FLASH_ATTR determineDataType(uint16_t type)	{return(DATA_UINT16_T		);}
-		uint8_t ICACHE_FLASH_ATTR determineDataType(uint16_t* type)	{return(DATA_UINT16_T_ARRAY	);}
-		uint8_t ICACHE_FLASH_ATTR determineDataType(int16_t type)	{return(DATA_INT16_T		);}
-		uint8_t ICACHE_FLASH_ATTR determineDataType(int16_t* type)	{return(DATA_INT16_T_ARRAY	);}
-		uint8_t ICACHE_FLASH_ATTR determineDataType(uint32_t type)	{return(DATA_UINT32_T		);}
-		uint8_t ICACHE_FLASH_ATTR determineDataType(uint32_t* type)	{return(DATA_UINT32_T_ARRAY	);}
-		uint8_t ICACHE_FLASH_ATTR determineDataType(int32_t type)	{return(DATA_INT32_T		);}
-		uint8_t ICACHE_FLASH_ATTR determineDataType(int32_t* type)	{return(DATA_INT32_T_ARRAY	);}
-		uint8_t ICACHE_FLASH_ATTR determineDataType(uint64_t type)	{return(DATA_UINT64_T		);}
-		uint8_t ICACHE_FLASH_ATTR determineDataType(uint64_t* type)	{return(DATA_UINT64_T_ARRAY	);}
-		uint8_t ICACHE_FLASH_ATTR determineDataType(int64_t type)	{return(DATA_INT64_T		);}
-		uint8_t ICACHE_FLASH_ATTR determineDataType(int64_t* type)	{return(DATA_INT64_T_ARRAY	);}
-		uint8_t ICACHE_FLASH_ATTR determineDataType(float type)		{return(DATA_FLOAT			);}
-		uint8_t ICACHE_FLASH_ATTR determineDataType(float* type)	{return(DATA_FLOAT_ARRAY	);}
-		uint8_t ICACHE_FLASH_ATTR determineDataType(double type)	{return(DATA_DOUBLE			);}
-		uint8_t ICACHE_FLASH_ATTR determineDataType(double* type)	{return(DATA_DOUBLE_ARRAY	);}
-		uint8_t ICACHE_FLASH_ATTR determineDataType(char type)		{return(DATA_CHAR			);}
-		uint8_t ICACHE_FLASH_ATTR determineDataType(char* type)		{return(DATA_CHAR_ARRAY		);}
+		uint8_t ICACHE_FLASH_ATTR determineDataType(bool type)						{return(DATA_BOOL			);}
+		uint8_t ICACHE_FLASH_ATTR determineDataType(uint8_t type)					{return(DATA_UINT8_T		);}
+		uint8_t ICACHE_FLASH_ATTR determineDataType(uint8_t* type)					{return(DATA_UINT8_T_ARRAY	);}
+		uint8_t ICACHE_FLASH_ATTR determineDataType(int8_t type)					{return(DATA_INT8_T			);}
+		uint8_t ICACHE_FLASH_ATTR determineDataType(int8_t* type)					{return(DATA_INT8_T_ARRAY	);}
+		uint8_t ICACHE_FLASH_ATTR determineDataType(uint16_t type)					{return(DATA_UINT16_T		);}
+		uint8_t ICACHE_FLASH_ATTR determineDataType(uint16_t* type)					{return(DATA_UINT16_T_ARRAY	);}
+		uint8_t ICACHE_FLASH_ATTR determineDataType(int16_t type)					{return(DATA_INT16_T		);}
+		uint8_t ICACHE_FLASH_ATTR determineDataType(int16_t* type)					{return(DATA_INT16_T_ARRAY	);}
+		uint8_t ICACHE_FLASH_ATTR determineDataType(uint32_t type)					{return(DATA_UINT32_T		);}
+		uint8_t ICACHE_FLASH_ATTR determineDataType(uint32_t* type)					{return(DATA_UINT32_T_ARRAY	);}
+		uint8_t ICACHE_FLASH_ATTR determineDataType(int32_t type)					{return(DATA_INT32_T		);}
+		uint8_t ICACHE_FLASH_ATTR determineDataType(int32_t* type)					{return(DATA_INT32_T_ARRAY	);}
+		uint8_t ICACHE_FLASH_ATTR determineDataType(uint64_t type)					{return(DATA_UINT64_T		);}
+		uint8_t ICACHE_FLASH_ATTR determineDataType(uint64_t* type)					{return(DATA_UINT64_T_ARRAY	);}
+		uint8_t ICACHE_FLASH_ATTR determineDataType(int64_t type)					{return(DATA_INT64_T		);}
+		uint8_t ICACHE_FLASH_ATTR determineDataType(int64_t* type)					{return(DATA_INT64_T_ARRAY	);}
+		uint8_t ICACHE_FLASH_ATTR determineDataType(float type)						{return(DATA_FLOAT			);}
+		uint8_t ICACHE_FLASH_ATTR determineDataType(float* type)					{return(DATA_FLOAT_ARRAY	);}
+		uint8_t ICACHE_FLASH_ATTR determineDataType(double type)					{return(DATA_DOUBLE			);}
+		uint8_t ICACHE_FLASH_ATTR determineDataType(double* type)					{return(DATA_DOUBLE_ARRAY	);}
+		uint8_t ICACHE_FLASH_ATTR determineDataType(char type)						{return(DATA_CHAR			);}
+		uint8_t ICACHE_FLASH_ATTR determineDataType(char* type)						{return(DATA_CHAR_ARRAY		);}
+		template<typename customType> uint8_t determineDataType(customType type)	{return(DATA_CUSTOM			);}	//Catchall for custom types, which are probably a structs
+
+		uint8_t ICACHE_FLASH_ATTR determineDataSize(uint8_t type)					{return(sizeof(uint8_t)		);}
+		uint8_t ICACHE_FLASH_ATTR determineDataSize(int8_t type)					{return(sizeof(int8_t)		);}
+		uint8_t ICACHE_FLASH_ATTR determineDataSize(uint16_t type)					{return(sizeof(uint16_t)	);}
+		uint8_t ICACHE_FLASH_ATTR determineDataSize(int16_t type)					{return(sizeof(int16_t)		);}
+		uint8_t ICACHE_FLASH_ATTR determineDataSize(uint32_t type)					{return(sizeof(uint32_t)	);}
+		uint8_t ICACHE_FLASH_ATTR determineDataSize(int32_t type)					{return(sizeof(int32_t)		);}
+		uint8_t ICACHE_FLASH_ATTR determineDataSize(uint64_t type)					{return(sizeof(uint64_t)	);}
+		uint8_t ICACHE_FLASH_ATTR determineDataSize(int64_t type)					{return(sizeof(int64_t)		);}
+		uint8_t ICACHE_FLASH_ATTR determineDataSize(float type)						{return(sizeof(float)		);}
+		uint8_t ICACHE_FLASH_ATTR determineDataSize(double type)					{return(sizeof(double)		);}
+		uint8_t ICACHE_FLASH_ATTR determineDataSize(char type)						{return(sizeof(char)		);}
+		template<typename customType> uint8_t determineDataSize(customType type)	{return(sizeof(customType)	);}	//Catchall for custom types, which are probably a structs
 
 		uint8_t ICACHE_FLASH_ATTR determineDataSize(bool* type)		{return(sizeof(bool)		);}
 		uint8_t ICACHE_FLASH_ATTR determineDataSize(uint8_t* type)	{return(sizeof(uint8_t)		);}
@@ -577,18 +673,8 @@ class m2mDirectClass	{
 		uint8_t ICACHE_FLASH_ATTR determineDataSize(int64_t* type)	{return(sizeof(int64_t)		);}
 		uint8_t ICACHE_FLASH_ATTR determineDataSize(float* type)	{return(sizeof(float)		);}
 		uint8_t ICACHE_FLASH_ATTR determineDataSize(double* type)	{return(sizeof(double)		);}
-		uint8_t ICACHE_FLASH_ATTR determineDataSize(char* type)		{return(sizeof(char)		);}
-		uint8_t ICACHE_FLASH_ATTR determineDataSize(uint8_t type)	{return(sizeof(uint8_t)		);}
-		uint8_t ICACHE_FLASH_ATTR determineDataSize(int8_t type)	{return(sizeof(int8_t)		);}
-		uint8_t ICACHE_FLASH_ATTR determineDataSize(uint16_t type)	{return(sizeof(uint16_t)	);}
-		uint8_t ICACHE_FLASH_ATTR determineDataSize(int16_t type)	{return(sizeof(int16_t)		);}
-		uint8_t ICACHE_FLASH_ATTR determineDataSize(uint32_t type)	{return(sizeof(uint32_t)	);}
-		uint8_t ICACHE_FLASH_ATTR determineDataSize(int32_t type)	{return(sizeof(int32_t)		);}
-		uint8_t ICACHE_FLASH_ATTR determineDataSize(uint64_t type)	{return(sizeof(uint64_t)	);}
-		uint8_t ICACHE_FLASH_ATTR determineDataSize(int64_t type)	{return(sizeof(int64_t)		);}
-		uint8_t ICACHE_FLASH_ATTR determineDataSize(float type)		{return(sizeof(float)		);}
-		uint8_t ICACHE_FLASH_ATTR determineDataSize(double type)	{return(sizeof(double)		);}
-		uint8_t ICACHE_FLASH_ATTR determineDataSize(char type)		{return(sizeof(char)		);}
+		uint8_t ICACHE_FLASH_ATTR determineDataSize(char* type)		{return(sizeof(char)		);}		
+
 		void _dataTypeDescription(uint8_t type);
 		bool _tieBreak(uint8_t* macAddress1, uint8_t* macAddress2);					//Tie break between two MAC addresses
 		bool _remoteMacAddressSet();												//Returns true if the remote MAC address is confirmed
